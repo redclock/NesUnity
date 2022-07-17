@@ -9,12 +9,12 @@ using UnityEngine.Experimental.Rendering;
 public class TestNes
 {
     [Test]
-    public void TestNesOpen()
+    public void TestNesChrTable()
     {
         byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/smb.nes");
         var nes = new NesRom();
         Assert.True(nes.ReadFromBytes(bytes));
-        var texture = CreatePatternTexture(nes.ChrRom);
+        var texture = CreatePatternTexture(nes.chrPatternTable);
         byte[] textureBytes = texture.EncodeToPNG();
         File.WriteAllBytes("Assets/chr.png", textureBytes);
     }
@@ -46,4 +46,19 @@ public class TestNes
 
         return texture;
     }
+    
+    [Test]
+    public void TestNesMemory()
+    {
+        byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new NesRom();
+        Assert.True(nes.ReadFromBytes(bytes));
+        CpuMemory cpuMemory = new CpuMemory(nes.mapper);
+        int nmi = cpuMemory.GetInterruptVector(Interrupt.Nmi);
+        int reset = cpuMemory.GetInterruptVector(Interrupt.Reset);
+        int irq = cpuMemory.GetInterruptVector(Interrupt.Irq);
+        
+        Debug.LogFormat("NMI = ${0:X4} RST = ${1:X4} IRQ = ${2:X4}", nmi, reset, irq);
+    }
+
 }
