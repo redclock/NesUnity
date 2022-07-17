@@ -1,3 +1,3 @@
 # NesUnity
 
-A NES Emulator based on Unity3D
+An NES emulator based on Unity3D
