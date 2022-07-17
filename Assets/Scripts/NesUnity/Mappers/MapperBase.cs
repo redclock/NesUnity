@@ -3,12 +3,6 @@ using UnityEngine;
 
 namespace NesUnity.Mappers {
     public abstract class MapperBase {
-        protected NesRom romFile;
-
-        public MapperBase(NesRom rom) {
-            romFile = rom;
-        }
-        
         public abstract byte ReadByte(int address);
         public abstract void WriteByte(int address, byte val);
 

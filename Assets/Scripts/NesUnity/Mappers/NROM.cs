@@ -12,7 +12,7 @@ public class NROM : MapperBase
 {
     private byte[] _prgRom;
 
-    public NROM(NesRom rom) : base(rom)
+    public NROM(NesRom rom)
     {
         _prgRom = rom.prgRom;
     }

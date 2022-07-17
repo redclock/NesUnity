@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using NesUnity.Mappers;
 
 namespace NesUnity
@@ -35,11 +36,13 @@ public class CpuMemory
         _mapper = mapper;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int ReadWord(int address)
     {
         return ReadByte(address) + (ReadByte(address + 1) << 8);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void WriteWord(int address, int word)
     {
         WriteByte(address, (byte) (word & 0xFF));
@@ -83,7 +86,7 @@ public class CpuMemory
             return _sram[address - 0x6000];
         }
 
-        return _mapper.ReadByte(address);
+        return _mapper.ReadByte(address & 0xFFFF);
     }
 
     private byte ReadPPURegister(int address)
@@ -131,7 +134,7 @@ public class CpuMemory
             
         } else
         {
-            _mapper.ReadByte(address);
+            _mapper.ReadByte(address & 0xFFFF);
         }
     }
 
