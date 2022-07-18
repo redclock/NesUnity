@@ -12,6 +12,8 @@ namespace NesUnity
         private Instruction[] _instructions = new Instruction[256];
         public int Cycle;
         public int TotalCycle;
+        public Action OnBeforeExecute;
+        public Action OnEndExecute;
 
         public Cpu(MapperBase mapper)
         {
@@ -19,24 +21,27 @@ namespace NesUnity
             InitInstructions();
         }
 
-        public void Tick()
+        public bool Tick()
         {
             TotalCycle++;
             if (Cycle > 1)
             {
                 Cycle--;
-                return;
+                return false;
             }
 
             Cycle = 0;
+            OnBeforeExecute?.Invoke();
             ExecuteOpcode();
+            OnEndExecute?.Invoke();
+            return true;
         }
 
         private void ExecuteOpcode()
         {
             byte opcode = _memory.ReadByte(PC++);
             _currentInstruction = _instructions[opcode];
-            Debug.LogFormat("${0:X4} {1} CYCLE {2}", PC - 1, _currentInstruction.Name, TotalCycle);
+            //Debug.LogFormat("${0:X4} {1} CYCLE {2}", PC - 1, _currentInstruction.Name, TotalCycle);
             UpdateAddress();
             _currentInstruction.Func();
             Cycle += _currentInstruction.Cycles;
@@ -77,6 +82,11 @@ namespace NesUnity
             PC = _memory.GetInterruptVector(interrupt);
             P.IrqDisable = true;
             Cycle += 7;
+        }
+
+        public Instruction GetCurOp()
+        {
+            return _instructions[_memory.ReadByte(PC)];
         }
     }
 

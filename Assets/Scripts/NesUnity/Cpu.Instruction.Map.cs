@@ -168,7 +168,7 @@ namespace NesUnity
             Op("INC", 0xF6, INC, ZeroPageX,  6, rmw: true);
             Op("INC", 0xFE, INC, AbsoluteX,  7, rmw: true);
             Op("DEC", 0xC6, DEC, ZeroPage,   5, rmw: true);
-            Op("DEC", 0xCE, DEC, Absolute,   3, rmw: true);
+            Op("DEC", 0xCE, DEC, Absolute,   6, rmw: true);
             Op("DEC", 0xD6, DEC, ZeroPageX,  6, rmw: true);
             Op("DEC", 0xDE, DEC, AbsoluteX,  7, rmw: true);
             Op("SKB", 0x04, SKB, Immediate,  2);

@@ -121,7 +121,7 @@ namespace NesUnity
         private void TXS()
         {
             // TXS - Transfer X to Stack Pointer
-            P.SetZN(SP = X);
+            SP = X;
         }
 
         [OpcodeDef(Opcode = 0x08, Mode = Implicit, Cycles = 3)]
@@ -171,6 +171,7 @@ namespace NesUnity
             {
                 int newPC = PC + _currentOpAddress;
 
+                // clk += ((PC & 0xFF00) != (REL_ADDR(PC, src) & 0xFF00) ? 2 : 1);
                 if ((newPC & 0xFF00) != (PC & 0xFF00))
                     Cycle += 2;
                 else
@@ -594,7 +595,7 @@ namespace NesUnity
         }
 
         [OpcodeDef(Opcode = 0xC6, Mode = ZeroPage, Cycles = 5, RMW = true)]
-        [OpcodeDef(Opcode = 0xCE, Mode = Absolute, Cycles = 3, RMW = true)]
+        [OpcodeDef(Opcode = 0xCE, Mode = Absolute, Cycles = 6, RMW = true)]
         [OpcodeDef(Opcode = 0xD6, Mode = ZeroPageX, Cycles = 6, RMW = true)]
         [OpcodeDef(Opcode = 0xDE, Mode = AbsoluteX, Cycles = 7, RMW = true)]
         private void DEC()

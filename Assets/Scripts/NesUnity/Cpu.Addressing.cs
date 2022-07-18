@@ -11,6 +11,11 @@ namespace NesUnity
         private byte _rmwValue;
         private int _currentOpAddress;
 
+        public int CurrentOpAddress
+        {
+            get { return _currentOpAddress; }
+        }
+
         private int UpdateAddress()
         {
             if (_currentInstruction.Mode == Accumulator || _currentInstruction.Mode == Implicit)
@@ -39,11 +44,11 @@ namespace NesUnity
                 case AbsoluteX:
                     addr = NextWord();
                     if (checkPageBoundary && (addr & 0xFF00) != ((addr + X) & 0xFF00)) Cycle += 1;
-                    return addr + X;
+                    return (addr + X) & 0xFFFF;
                 case AbsoluteY:
                     addr = NextWord();
                     if (checkPageBoundary && (addr & 0xFF00) != ((addr + Y) & 0xFF00)) Cycle += 1;
-                    return addr + Y;
+                    return (addr + Y) & 0xFFFF;
                 case Indirect:
                     int off = NextWord();
                     // AN INDIRECT JUMP MUST NEVER USE A VECTOR BEGINNING ON THE LAST BYTE OF A PAGE
