@@ -14,8 +14,8 @@ namespace NesUnity
     
     public enum AddressingMode
     {
-        None,
-        Direct,
+        Implicit,
+        Accumulator,
         Immediate,
         ZeroPage,
         Absolute,
@@ -23,6 +23,7 @@ namespace NesUnity
         ZeroPageY,
         AbsoluteX,
         AbsoluteY,
+        Indirect,
         IndirectX,
         IndirectY, 
         Relative,

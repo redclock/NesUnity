@@ -7,14 +7,24 @@ namespace NesUnity
 {
     public partial class Cpu
     {
-        private OpcodeDef _currentInstruction;
+        private Instruction _currentInstruction;
         private byte _rmwValue;
-        
-        private int Address()
+        private int _currentOpAddress;
+
+        private int UpdateAddress()
         {
-            var def = _currentInstruction;
+            if (_currentInstruction.Mode == Accumulator || _currentInstruction.Mode == Implicit)
+                _currentOpAddress = -1;
+            else
+                _currentOpAddress = Address(_currentInstruction.Mode, _currentInstruction.PageBoundary);
+            
+            return _currentOpAddress;
+        }
+        
+        private int Address(AddressingMode mode, bool checkPageBoundary)
+        {
             int addr;
-            switch (def.Mode)
+            switch (mode)
             {
                 case Immediate:
                     return PC++;
@@ -28,44 +38,62 @@ namespace NesUnity
                     return (NextByte() + Y) & 0xFF;
                 case AbsoluteX:
                     addr = NextWord();
-                    if (def.PageBoundary && (addr & 0xFF00) != ((addr + X) & 0xFF00)) Cycle += 1;
+                    if (checkPageBoundary && (addr & 0xFF00) != ((addr + X) & 0xFF00)) Cycle += 1;
                     return addr + X;
                 case AbsoluteY:
                     addr = NextWord();
-                    if (def.PageBoundary && (addr & 0xFF00) != ((addr + Y) & 0xFF00)) Cycle += 1;
+                    if (checkPageBoundary && (addr & 0xFF00) != ((addr + Y) & 0xFF00)) Cycle += 1;
                     return addr + Y;
+                case Indirect:
+                    int off = NextWord();
+                    // AN INDIRECT JUMP MUST NEVER USE A VECTOR BEGINNING ON THE LAST BYTE OF A PAGE
+                    //
+                    // If address $3000 contains $40, $30FF contains $80, and $3100 contains $50, 
+                    // the result of JMP ($30FF) will be a transfer of control to $4080 rather than
+                    // $5080 as you intended i.e. the 6502 took the low byte of the address from
+                    // $30FF and the high byte from $3000.
+                    //
+                    // http://www.6502.org/tutorials/6502opcodes.html
+                    int hi = (off & 0xFF00) | ((off + 1) & 0xFF);
+                    if (checkPageBoundary && (off & 0xFF00) != (hi & 0xFF00)) Cycle += 1;
+                    addr = _memory.ReadByte(off) | (_memory.ReadByte(hi) << 8);
+                    return addr;
                 case IndirectX:
-                    int off = (NextByte() + X) & 0xFF;
+                    off = (NextByte() + X) & 0xFF;
                     return _memory.ReadByte(off) | (_memory.ReadByte((off + 1) & 0xFF) << 8);
                 case IndirectY:
                     off = NextByte() & 0xFF;
-                    addr = _memory.ReadByte(off) | (_memory.ReadByte((off + 1) & 0xFF) << 8);
-                    if (def.PageBoundary && (addr & 0xFF00) != ((addr + Y) & 0xFF00)) Cycle += 1;
-                    return (addr + Y) & 0xFFFF;
+                    off = _memory.ReadByte(off) | (_memory.ReadByte((off + 1) & 0xFF) << 8);
+                    if (checkPageBoundary && (off & 0xFF00) != ((off + Y) & 0xFF00)) Cycle += 1;
+                    return (off + Y) & 0xFFFF;
+                case Relative:
+                    return NextSByte();
             }
-            throw new NotImplementedException("Address Mode " + def.Mode);
+            throw new NotImplementedException("Address Mode " + mode);
         }
         
         private byte AddressRead()
         {
-            if (_currentInstruction.Mode == Direct) 
+            Debug.Assert(_currentInstruction.Mode != Implicit); 
+            if (_currentInstruction.Mode == Accumulator) 
                 return _rmwValue = A;
             
-            int address = Address();
-            return _rmwValue = _memory.ReadByte(address);
+            Debug.Assert(_currentOpAddress >= 0);
+            return _rmwValue = _memory.ReadByte(_currentOpAddress);
         }
 
         private void AddressWrite(byte val)
         {
-            if (_currentInstruction.Mode == Direct)
+            Debug.Assert(_currentInstruction.Mode != Implicit); 
+            if (_currentInstruction.Mode == Accumulator)
             {
                 A = val;
             } else
             {
-                int address = Address();
+                Debug.Assert(_currentOpAddress >= 0);
                 if (_currentInstruction.RMW)
-                    _memory.WriteByte(address, _rmwValue);
-                _memory.WriteByte(address, val);
+                    _memory.WriteByte(_currentOpAddress, _rmwValue);
+                _memory.WriteByte(_currentOpAddress, val);
             }
         }
 

@@ -1,10 +1,14 @@
 namespace NesUnity
 {
-    public struct Instruction
+    public class Instruction
     {
-        public byte OpCode;
-        public int OpCount;
+        public delegate void OpFunc();
+        public string Name;
+        public byte Code;
+        public AddressingMode Mode;
         public int Cycles;
-        public AddressingMode AddressMode;
+        public OpFunc Func;
+        public bool PageBoundary;
+        public bool RMW;
     }
 }
