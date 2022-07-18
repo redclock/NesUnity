@@ -104,11 +104,11 @@ namespace NesUnity
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte NextWord()
+        private int NextWord()
         {
-            byte low = _memory.ReadByte(PC++);
-            byte high = _memory.ReadByte(PC++);
-            return (byte) (low | (high << 8));
+            int word = _memory.ReadWord(PC);
+            PC += 2;
+            return word;
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

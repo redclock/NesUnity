@@ -1,8 +1,6 @@
 using System;
-using UnityEngine;
 using static NesUnity.AddressingMode;
 // ReSharper disable InconsistentNaming
-// ReSharper disable UnusedMember.Local
 
 namespace NesUnity
 {

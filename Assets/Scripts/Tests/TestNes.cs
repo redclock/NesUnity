@@ -143,5 +143,19 @@ namespace NesUnity
         File.WriteAllText(FILE_NAME, sb.ToString());
     }
 
+    [Test]
+    public void TestCpuOps()
+    {
+        byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new NesRom();
+        Assert.True(nes.ReadFromBytes(bytes));
+        Cpu cpu = new Cpu(nes.mapper);
+        cpu.Reset(0xC000);
+        for (int i = 0; i < 100; i++)
+        {
+            cpu.Tick();
+        }
+    }
+
 
 }
