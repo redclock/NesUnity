@@ -10,19 +10,28 @@ namespace NesUnity
     {
         private CpuMemory _memory;
         private Instruction[] _instructions = new Instruction[256];
+        private bool _halted;
+        private Nes _nesSys;
+        
         public int Cycle;
         public int TotalCycle;
         public Action OnBeforeExecute;
         public Action OnEndExecute;
-
-        public Cpu(MapperBase mapper)
+        
+        public bool Halted => _halted;
+        public Nes NesSys => _nesSys;
+        public CpuMemory Memory => _memory;
+        public Cpu(Nes nes)
         {
-            _memory = new CpuMemory(mapper);
+            _nesSys = nes;
             InitInstructions();
         }
 
         public bool Tick()
         {
+            if (Halted)
+                return false;
+            
             TotalCycle++;
             if (Cycle > 1)
             {
@@ -60,19 +69,22 @@ namespace NesUnity
             _instructions[code] = instruction;
         }
 
-        public void Reset(int pc)
+        public void Reset(int pc = -1)
         {
+            _memory = new CpuMemory(this);
             A = 0;
             X = 0;
             Y = 0;
             P.FromByte(0b00100100); // IrqDisable = true
             SP = 0xFD;
-            PC = pc;
             Cycle = 7;
             TotalCycle = 0;
+            if (pc < 0)
+                PC = _memory.GetInterruptVector(Interrupt.Reset);
+            _halted = false;
         }
 
-        private void TriggerInterrupt(Interrupt interrupt)
+        public void TriggerInterrupt(Interrupt interrupt)
         {
             if (interrupt == Interrupt.Irq && P.IrqDisable)
                 return;

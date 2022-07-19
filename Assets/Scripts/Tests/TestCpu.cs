@@ -14,12 +14,12 @@ public class TestCpu
     public void TestNesMemory()
     {
         byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
-        var nes = new NesRom();
-        Assert.True(nes.ReadFromBytes(bytes));
-        CpuMemory cpuMemory = new CpuMemory(nes.mapper);
-        int nmi = cpuMemory.GetInterruptVector(Interrupt.Nmi);
-        int reset = cpuMemory.GetInterruptVector(Interrupt.Reset);
-        int irq = cpuMemory.GetInterruptVector(Interrupt.Irq);
+        var nes = new Nes();
+        
+        Assert.True(nes.PowerOn(bytes));
+        int nmi = nes.cpu.Memory.GetInterruptVector(Interrupt.Nmi);
+        int reset = nes.cpu.Memory.GetInterruptVector(Interrupt.Reset);
+        int irq = nes.cpu.Memory.GetInterruptVector(Interrupt.Irq);
         
         Debug.LogFormat("NMI = ${0:X4} RST = ${1:X4} IRQ = ${2:X4}", nmi, reset, irq);
     }
@@ -58,18 +58,23 @@ public class TestCpu
     public void TestCpuOpsWithStandardLog()
     {
         byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
-        var nes = new NesRom();
-        Assert.True(nes.ReadFromBytes(bytes));
-        Cpu cpu = new Cpu(nes.mapper);
-        cpu.Reset(0xC000);
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes, 0xC000));
+        var cpu = nes.cpu;
         int index = 0;
         var logs = ReadNesTestLog();
         
-        //using StreamWriter fs = File.CreateText("result.txt");
-        
+        using StreamWriter fs = File.CreateText("result.txt");
+        bool isFinished = false;
         cpu.OnBeforeExecute = () =>
         {
-        //    fs.Write($"{cpu.PC:X4} {cpu.GetCurOp().Name} P:{cpu.P.ToByte():X2}");
+            fs.Write($"{cpu.PC:X4} {cpu.GetCurOp().Name} P:{cpu.P.ToByte():X2}");
+            if (index >= logs.Length)
+            {
+                index++;
+                isFinished = true;
+                return;
+            }
             var log = logs[index++];
             string tag = $"Line {index + 1}";
             Assert.AreEqual(log.pc, cpu.PC, tag + " PC");
@@ -80,17 +85,18 @@ public class TestCpu
             Assert.AreEqual(log.sp, cpu.SP, tag + " SP");
             Assert.AreEqual(log.cycle, cpu.TotalCycle, tag + " CYCLE");
         };
-        // cpu.OnEndExecute = () =>
-        // {
-        //     fs.WriteLine($" M:{cpu.CurrentOpAddress:X4}");
-        //     fs.Flush();
-        // };
+        cpu.OnEndExecute = () =>
+        {
+            fs.WriteLine($" M:{cpu.CurrentOpAddress:X4}");
+            fs.Flush();
+        };
         Stopwatch sw = new Stopwatch();
         sw.Start();
-        for (int i = 0; i < 10000; i++)
+        while (!cpu.Halted)
         {
             cpu.Tick();
         }
+        Debug.Log(cpu.Memory.ReadWord(0x02));
 
         Debug.Log("sw = " + sw.ElapsedMilliseconds);
     }

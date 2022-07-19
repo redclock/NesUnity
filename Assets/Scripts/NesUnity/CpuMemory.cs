@@ -23,6 +23,7 @@ namespace NesUnity
 
 public class CpuMemory
 {
+    private Cpu _cpu;
     // internal RAM
     private byte[] _ram = new byte[0x800];
 
@@ -31,9 +32,10 @@ public class CpuMemory
 
     private MapperBase _mapper;
 
-    public CpuMemory(MapperBase mapper)
+    public CpuMemory(Cpu cpu)
     {
-        _mapper = mapper;
+        _cpu = cpu;
+        _mapper = cpu.NesSys.Mapper;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
