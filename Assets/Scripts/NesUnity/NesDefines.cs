@@ -2,7 +2,11 @@ namespace NesUnity
 {
     public enum MirrorMode
     {
-        Horizontal, Vertical, FourScreen
+        Horizontal = 0, 
+        Vertical = 1, 
+        FourScreen = 2, 
+        Upper = 3, 
+        Lower = 4
     }
 
     public enum Interrupt

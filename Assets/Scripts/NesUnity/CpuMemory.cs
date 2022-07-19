@@ -31,11 +31,13 @@ public class CpuMemory
     private byte[] _sram = new byte[0x2000];
 
     private MapperBase _mapper;
+    private Ppu _ppu;
 
     public CpuMemory(Cpu cpu)
     {
         _cpu = cpu;
-        _mapper = cpu.NesSys.Mapper;
+        _ppu = cpu.NesSys.ppu;
+        _mapper = cpu.NesSys.rom.mapper;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -64,14 +66,14 @@ public class CpuMemory
         {
             // $2000-$3FFF
             // Mirroring of PPU registers (repeat every 7 bytes)
-            return ReadPPURegister(address & 0x07);
+             _ppu.ReadRegister(address & 0x07);
         }
 
         if (address < 0x4020)
         {
             // $4000-$4020
             // APU Registers
-            return ReadAPURegister(address);
+            return 0;
         }
 
         if (address < 0x6000)
@@ -91,18 +93,6 @@ public class CpuMemory
         return _mapper.ReadByte(address & 0xFFFF);
     }
 
-    private byte ReadPPURegister(int address)
-    {
-        // TODO 
-        return 0;
-    }
-
-    private byte ReadAPURegister(int address)
-    {
-        // TODO 
-        return 0;
-    }
-
     public void WriteByte(int address, byte val)
     {
         if (address < 0x2000)
@@ -115,13 +105,13 @@ public class CpuMemory
         {
             // $2000-$3FFF
             // Mirroring of PPU registers (repeat every 7 bytes)
-            WritePPURegister(address & 0x07, val);
+            _ppu.WriteRegister(address & 0x07, val);
             
         } else if (address < 0x4020)
         {
             // $4000-$4020
             // APU Registers
-            WriteAPURegister(address, val);
+            // WriteAPURegister(address, val);
             
         } else if (address < 0x6000)
         {
@@ -136,20 +126,9 @@ public class CpuMemory
             
         } else
         {
-            _mapper.ReadByte(address & 0xFFFF);
+            _mapper.WriteByte(address & 0xFFFF, val);
         }
     }
-
-    private void WritePPURegister(int address, byte val)
-    {
-        // TODO 
-    }
-
-    private void WriteAPURegister(int address, byte val)
-    {
-        // TODO 
-    }
-
 
     public int GetInterruptVector(Interrupt interrupt)
     {

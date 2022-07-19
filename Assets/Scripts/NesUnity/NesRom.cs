@@ -13,7 +13,6 @@ namespace NesUnity
         private const int TRAINER_LEN = 512;
 
         private byte[] _rawBytes;
-        private MirrorMode _mirrorMode;
         private int _mapperNumber;
         private bool _hasTrainer;
         private bool _hasSRam;
@@ -22,6 +21,7 @@ namespace NesUnity
 
         public PatternTable chrPatternTable;
         public MapperBase mapper;
+        public MirrorMode mirrorMode;
         
         public bool ReadFromBytes(byte[] bytes)
         {
@@ -66,7 +66,7 @@ namespace NesUnity
             ExtractFlag6(_rawBytes[6]);
             ExtractFlag7(_rawBytes[7]);
 
-            Debug.LogFormat("Mapper = {0}, Mirror = {1}, Trainer = {2}, SRAM = {3}", _mapperNumber, _mirrorMode, _hasTrainer, _hasSRam);
+            Debug.LogFormat("Mapper = {0}, Mirror = {1}, Trainer = {2}, SRAM = {3}", _mapperNumber, mirrorMode, _hasTrainer, _hasSRam);
             
             // PRG / CHR ROM
             Debug.LogFormat("PRG Size = {0}*16K, CHR Size = {1}*8K", _rawBytes[4], _rawBytes[5]);
@@ -117,7 +117,7 @@ namespace NesUnity
             _hasTrainer     = (flag & 0b00000100) > 0;
             bool fourScreen = (flag & 0b00001000) > 0;
             _mapperNumber   = flag >> 4;
-            _mirrorMode = fourScreen ? MirrorMode.FourScreen :
+            mirrorMode = fourScreen ? MirrorMode.FourScreen :
                 mirrorV ? MirrorMode.Vertical : MirrorMode.Horizontal;
         }
         

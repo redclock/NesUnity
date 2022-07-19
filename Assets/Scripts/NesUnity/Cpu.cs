@@ -48,12 +48,25 @@ namespace NesUnity
 
         private void ExecuteOpcode()
         {
+            // Fetch op code
             byte opcode = _memory.ReadByte(PC++);
+            
+            // Find Instruction
             _currentInstruction = _instructions[opcode];
+            
             //Debug.LogFormat("${0:X4} {1} CYCLE {2}", PC - 1, _currentInstruction.Name, TotalCycle);
-            UpdateAddress();
-            _currentInstruction.Func();
+            
+            // Resolve address mode
+            if (_currentInstruction.Mode == AddressingMode.Accumulator || _currentInstruction.Mode == AddressingMode.Implicit)
+                _currentOpAddress = -1;
+            else
+                _currentOpAddress = Address(_currentInstruction.Mode, _currentInstruction.PageBoundary);
+            
+            // Add cycles
             Cycle += _currentInstruction.Cycles;
+            
+            // Execute function
+            _currentInstruction.Func();
         }
         
         private void Op(string name, byte code, Instruction.OpFunc func, AddressingMode mode, int cycles, bool pageBoundary = false, bool rmw = false)

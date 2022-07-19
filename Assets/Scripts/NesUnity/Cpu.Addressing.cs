@@ -16,16 +16,6 @@ namespace NesUnity
             get { return _currentOpAddress; }
         }
 
-        private int UpdateAddress()
-        {
-            if (_currentInstruction.Mode == Accumulator || _currentInstruction.Mode == Implicit)
-                _currentOpAddress = -1;
-            else
-                _currentOpAddress = Address(_currentInstruction.Mode, _currentInstruction.PageBoundary);
-            
-            return _currentOpAddress;
-        }
-        
         private int Address(AddressingMode mode, bool checkPageBoundary)
         {
             int addr;
