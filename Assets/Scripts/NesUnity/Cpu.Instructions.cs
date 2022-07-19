@@ -331,12 +331,12 @@ namespace NesUnity
         [OpcodeDef(Opcode = 0xDA, Mode = Implicit, Cycles = 2)] // Unofficial
         [OpcodeDef(Opcode = 0xFA, Mode = Implicit, Cycles = 2)] // Unofficial
         [OpcodeDef(Opcode = 0x0C, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
-        [OpcodeDef(Opcode = 0x1C, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
-        [OpcodeDef(Opcode = 0x3C, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
-        [OpcodeDef(Opcode = 0x5C, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
-        [OpcodeDef(Opcode = 0x7C, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
-        [OpcodeDef(Opcode = 0xDC, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
-        [OpcodeDef(Opcode = 0xFC, Mode = Absolute, Cycles = 4)] // Unofficial, 3 bytes
+        [OpcodeDef(Opcode = 0x1C, Mode = AbsoluteX, Cycles = 4, PageBoundary = true)] // Unofficial, 3 bytes
+        [OpcodeDef(Opcode = 0x3C, Mode = AbsoluteX, Cycles = 4, PageBoundary = true)] // Unofficial, 3 bytes
+        [OpcodeDef(Opcode = 0x5C, Mode = AbsoluteX, Cycles = 4, PageBoundary = true)] // Unofficial, 3 bytes
+        [OpcodeDef(Opcode = 0x7C, Mode = AbsoluteX, Cycles = 4, PageBoundary = true)] // Unofficial, 3 bytes
+        [OpcodeDef(Opcode = 0xDC, Mode = AbsoluteX, Cycles = 4, PageBoundary = true)] // Unofficial, 3 bytes
+        [OpcodeDef(Opcode = 0xFC, Mode = AbsoluteX, Cycles = 4, PageBoundary = true)] // Unofficial, 3 bytes
 
         private void NOP() { }
 
@@ -610,15 +610,15 @@ namespace NesUnity
         }
 
         #region Unofficial Opcodes
-        [OpcodeDef(Opcode = 0x04, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0x44, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0x64, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0x14, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0x34, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0x54, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0x74, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0xD4, Mode = Immediate, Cycles = 2)]
-        [OpcodeDef(Opcode = 0xF4, Mode = Immediate, Cycles = 2)]
+        [OpcodeDef(Opcode = 0x04, Mode = Immediate, Cycles = 3)]
+        [OpcodeDef(Opcode = 0x44, Mode = Immediate, Cycles = 3)]
+        [OpcodeDef(Opcode = 0x64, Mode = Immediate, Cycles = 3)]
+        [OpcodeDef(Opcode = 0x14, Mode = Immediate, Cycles = 4)]
+        [OpcodeDef(Opcode = 0x34, Mode = Immediate, Cycles = 4)]
+        [OpcodeDef(Opcode = 0x54, Mode = Immediate, Cycles = 4)]
+        [OpcodeDef(Opcode = 0x74, Mode = Immediate, Cycles = 4)]
+        [OpcodeDef(Opcode = 0xD4, Mode = Immediate, Cycles = 4)]
+        [OpcodeDef(Opcode = 0xF4, Mode = Immediate, Cycles = 4)]
         [OpcodeDef(Opcode = 0x80, Mode = Immediate, Cycles = 2)]
         [OpcodeDef(Opcode = 0x82, Mode = Immediate, Cycles = 2)]
         [OpcodeDef(Opcode = 0x89, Mode = Immediate, Cycles = 2)]
@@ -771,12 +771,12 @@ namespace NesUnity
         }
 
         //[Instruction(Opcode = 0xAB, Mode = Immediate, Cycles = 2)] // Unstable
-        [OpcodeDef(Opcode = 0xA3, Mode = IndirectX, Cycles = 8)]
-        [OpcodeDef(Opcode = 0xA7, Mode = ZeroPage, Cycles = 5)]
-        [OpcodeDef(Opcode = 0xAF, Mode = Absolute, Cycles = 6)]
-        [OpcodeDef(Opcode = 0xB3, Mode = IndirectY, Cycles = 8, PageBoundary = true)]
-        [OpcodeDef(Opcode = 0xB7, Mode = ZeroPageY, Cycles = 6)]
-        [OpcodeDef(Opcode = 0xBF, Mode = AbsoluteY, Cycles = 7, PageBoundary = true)]
+        [OpcodeDef(Opcode = 0xA3, Mode = IndirectX, Cycles = 6)]
+        [OpcodeDef(Opcode = 0xA7, Mode = ZeroPage, Cycles = 3)]
+        [OpcodeDef(Opcode = 0xAF, Mode = Absolute, Cycles = 4)]
+        [OpcodeDef(Opcode = 0xB3, Mode = IndirectY, Cycles = 5, PageBoundary = true)]
+        [OpcodeDef(Opcode = 0xB7, Mode = ZeroPageY, Cycles = 4)]
+        [OpcodeDef(Opcode = 0xBF, Mode = AbsoluteY, Cycles = 4, PageBoundary = true)]
         private void LAX()
         {
             //     LAX - Undocumented Opcode
@@ -883,7 +883,7 @@ namespace NesUnity
         private void KIL()
         {
             // Halt
-            throw new NotImplementedException("KIL command at $" + (PC - 1).ToString("X4"));
+            _halted = true;
         }
         #endregion
     }
