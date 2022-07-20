@@ -6,7 +6,6 @@ namespace NesUnity
         private bool _addressFlip;
         private int _ppuAddress;
         private int _tempAddress;
-        private int _currentAddress;
         private byte _lastReadData;
         private int _scrollFineX;
 
@@ -147,7 +146,6 @@ namespace NesUnity
                 _tempAddress &= ~0xFF; //Unset the lower byte;
                 _tempAddress |= val;
                 _ppuAddress = _tempAddress;
-                _currentAddress = _tempAddress;
             }
             else
             {
