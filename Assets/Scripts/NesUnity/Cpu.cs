@@ -1,6 +1,4 @@
 using System;
-using System.Reflection;
-using NesUnity.Mappers;
 using UnityEngine;
 
 namespace NesUnity
@@ -21,6 +19,9 @@ namespace NesUnity
         public bool Halted => _halted;
         public Nes NesSys => _nesSys;
         public CpuMemory Memory => _memory;
+
+        public Instruction[] Instructions => _instructions;
+
         public Cpu(Nes nes)
         {
             _nesSys = nes;
@@ -71,6 +72,10 @@ namespace NesUnity
         
         private void Op(string name, byte code, Instruction.OpFunc func, AddressingMode mode, int cycles, bool pageBoundary = false, bool rmw = false)
         {
+            if (_instructions[code] != null)
+            {
+                Debug.LogErrorFormat("Duplicated instruction {0:X2}", code);
+            }
             var instruction = new Instruction();
             instruction.Name = name;
             instruction.Code = code;
@@ -78,7 +83,7 @@ namespace NesUnity
             instruction.Cycles = cycles;
             instruction.Func = func;
             instruction.PageBoundary = pageBoundary;
-            instruction.RMW = rmw;
+            instruction.Rmw = rmw;
             _instructions[code] = instruction;
         }
 

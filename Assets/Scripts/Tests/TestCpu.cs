@@ -27,27 +27,11 @@ public class TestCpu
     [Test]
     public void TestCpuHasAllInstructions()
     {
-        Cpu.OpcodeDef[] codes = new Cpu.OpcodeDef[256];
-        
-        var methods = typeof(Cpu).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance);
-        foreach (var m in methods)
-        {
-            var instructions = m.GetCustomAttributes<Cpu.OpcodeDef>(false);
-            foreach (var inst in instructions)
-            {
-                int index = inst.Opcode;
-                if (codes[index] != null)
-                {
-                    Debug.LogErrorFormat("Duplicated instruction {0:X2}", index);
-                }
-
-                codes[index] = inst;
-            }
-        }
+        Cpu cpu = new Cpu(null);
 
         for (int i = 0; i < 256; i++)
         {
-            if (codes[i] == null)
+            if (cpu.Instructions[i] == null)
             {
                 Debug.LogErrorFormat("Unsupported instruction {0:X2}", i);
             }

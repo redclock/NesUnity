@@ -9,6 +9,6 @@ namespace NesUnity
         public int Cycles;
         public OpFunc Func;
         public bool PageBoundary;
-        public bool RMW;
+        public bool Rmw;
     }
 }

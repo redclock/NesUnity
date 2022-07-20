@@ -1,4 +1,3 @@
-//Auto Generated Code
 namespace NesUnity
 {
     using static AddressingMode;
