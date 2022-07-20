@@ -9,7 +9,8 @@ namespace NesUnity.Mappers
   PPU $0000-$1FFF: CHR ROM
  */
  
-public class NROM : MapperBase
+ // ReSharper disable once InconsistentNaming
+ public class NROM : MapperBase
 {
     private NesRom _rom;
 

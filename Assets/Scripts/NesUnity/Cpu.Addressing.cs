@@ -86,7 +86,7 @@ namespace NesUnity
             } else
             {
                 Debug.Assert(_currentOpAddress >= 0);
-                if (_currentInstruction.RMW)
+                if (_currentInstruction.Rmw)
                     _memory.WriteByte(_currentOpAddress, _rmwValue);
                 _memory.WriteByte(_currentOpAddress, val);
             }
@@ -142,6 +142,7 @@ namespace NesUnity
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // ReSharper disable once UnusedMethodReturnValue.Local
         private byte PopP()
         {
             return P.FromByte(PopByte());

@@ -1,5 +1,3 @@
-using NesUnity.Mappers;
-
 namespace NesUnity
 {
     public class Nes

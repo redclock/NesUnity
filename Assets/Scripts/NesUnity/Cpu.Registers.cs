@@ -4,8 +4,10 @@ namespace NesUnity
 {
     public partial class Cpu
     {
+        // ReSharper disable once InconsistentNaming
         public int PC;
         public byte A;
+        // ReSharper disable once InconsistentNaming
         public byte SP;
         public byte X;
         public byte Y;
@@ -21,11 +23,12 @@ namespace NesUnity
             public bool Negative;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            // ReSharper disable once InconsistentNaming
             public byte SetZN(byte val)
             {
                 Zero = val == 0;
                 Negative = (val & 0x80) > 0;
-                return (byte)val;
+                return val;
             }
 
             public byte ToByte()

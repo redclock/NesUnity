@@ -23,6 +23,7 @@ namespace NesUnity
 
 public class CpuMemory
 {
+    // ReSharper disable once NotAccessedField.Local
     private Cpu _cpu;
     // internal RAM
     private byte[] _ram = new byte[0x800];
@@ -66,7 +67,7 @@ public class CpuMemory
         {
             // $2000-$3FFF
             // Mirroring of PPU registers (repeat every 7 bytes)
-             _ppu.ReadRegister(address & 0x07);
+             return _ppu.ReadRegister(address & 0x07);
         }
 
         if (address < 0x4020)

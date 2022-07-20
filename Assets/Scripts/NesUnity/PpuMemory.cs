@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.CompilerServices;
 using NesUnity.Mappers;
 
@@ -25,9 +24,6 @@ public class PpuMemory
     // Internal 4K VRAM for 4 Name table
     private byte[] _vram = new byte[0x1000];
     
-    // 256 bytes OAM for 64 sprites x 4 bytes
-    private byte[] _oam = new byte[0x100]; 
-
     // 64 bytes for palette
     private byte[] _palette = new byte[0x20];
 

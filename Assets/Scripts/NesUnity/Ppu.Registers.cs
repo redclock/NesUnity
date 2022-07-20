@@ -2,6 +2,7 @@ namespace NesUnity
 {
     public partial class Ppu
     {
+        
         // PPUCTRL($2000) write
         // 7  bit  0
         // ---- ----
@@ -31,7 +32,7 @@ namespace NesUnity
 
             public void FromByte(byte value)
             {
-                BaseNameTableAddress    = (value & 0b00000011) * 0x400 + 0x2000;
+                BaseNameTableAddress    = ((value & 0b00000011) << 10) + 0x2000;
                 VRamIncrement           = (value & 0b00000100) > 0 ? 32 : 1;
                 SpriteChrAddress        = (value & 0b00001000) > 0 ? 0x1000 : 0x0000;
                 BackgroundChrAddress    = (value & 0b00010000) > 0 ? 0x1000 : 0x0000;
@@ -117,8 +118,5 @@ namespace NesUnity
         }
 
         public PpuStatusReg PpuStatus;
-        
-        // OAM address ($2003) > write
-        public byte OamAddress;
     }
 }

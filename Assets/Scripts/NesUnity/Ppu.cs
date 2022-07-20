@@ -5,6 +5,8 @@ namespace NesUnity
         private PpuMemory _memory;
         private Nes _nesSys;
 
+        // 256 bytes OAM for 64 sprites x 4 bytes
+
         public Nes NesSys => _nesSys;
         public PpuMemory Memory => _memory;
         
@@ -22,20 +24,9 @@ namespace NesUnity
             PpuStatus.SpriteOverflow = false;
             PpuStatus.VBlank = false;
             PpuStatus.OpenBus = 0;
+            _ppuAddress = 0;
+            _addressFlip = false;
+            _lastReadData = 0;
         }
-        
-        public byte ReadRegister(int index)
-        {
-            
-            return 0;
-        }
-
-    
-        public void WriteRegister(int address, byte val)
-        {
-            // TODO 
-        }
-
-
     }
 }
