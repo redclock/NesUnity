@@ -4,10 +4,9 @@ namespace NesUnity
     {
         private byte _oamAddress;
         private bool _addressFlip;
-        private int _ppuAddress;
-        private int _tempAddress;
+        
+
         private byte _lastReadData;
-        private int _scrollFineX;
 
         private byte[] _oam = new byte[0x100];
 
@@ -70,16 +69,20 @@ namespace NesUnity
             return b;
 
         }
-
+        
         public void WriteRegister(int reg, byte val)
         {
+            PpuStatus.OpenBus = val;
             switch (reg)
             {
                 case 0: // PPUCTRL
                     PpuCtrl.FromByte(val);
                     //Set the nametable in the temp address, this will be reflected in the data address during rendering
-                    _tempAddress &= ~0xC00;                 //Unset
-                    _tempAddress |= (val & 0x3) << 10;      //Set according to ctrl bits
+                    //t: ...GH.. ........ <- d: ......GH
+                    //   <used elsewhere> <- d: ABCDEF..
+                    //ABCDEFGH
+                    _tempAddress &= ~(0b11 << 10);           //Unset
+                    _tempAddress |= (val & 0b11) << 10;      //Set according to ctrl bits
                     return;
                 
                 case 1: // PPUMASK
@@ -122,16 +125,22 @@ namespace NesUnity
             if (_addressFlip)
             {
                 // Y
-                _tempAddress &= ~0x73E0; 
-                _tempAddress |= ((val & 0x7) << 12) |
-                                ((val & 0xF8) << 2);
+                // $2005 second write (w is 1)
+                // t: FGH..AB CDE..... <- d: ABCDEFGH
+                // w:                  <- 0
+                _tempAddress &= ~0b111001111100000;
+                _tempAddress |= ((val & 0b00000111) << 12) | // FGH
+                                ((val & 0b11111000) << 2);   // ABCDE
             }
             else
             {
                 // X
-                _tempAddress &= ~0x1F;
+                // $2005 first write (w is 0)
+                // t: ....... ...ABCDE <- d: ABCDE...
+                // x:              FGH <- d: .....FGH
+                _tempAddress &= ~0b00011111;
                 _tempAddress |= val >> 3;
-                _scrollFineX = val & 0x00000111;
+                _scrollFineX = val & 0b00000111;
             }
             
             _addressFlip = !_addressFlip;
@@ -143,15 +152,23 @@ namespace NesUnity
             if (_addressFlip)
             {
                 // y address
-                _tempAddress &= ~0xFF; //Unset the lower byte;
+                // $2006 second write (w is 1)
+                // t: ....... ABCDEFGH <- d: ABCDEFGH
+                // v: <...all bits...> <- t: <...all bits...>
+                // w:                  <- 0
+                _tempAddress &= ~0b0000000011111111; //Unset the lower byte;
                 _tempAddress |= val;
                 _ppuAddress = _tempAddress;
             }
             else
             {
                 // x address
-                _tempAddress &= ~0xFF00; //Unset the upper byte
-                _tempAddress |= (val & 0x3F) << 8;
+                // $2006 first write (w is 0)
+                // t: .CDEFGH ........ <- d: ..CDEFGH
+                // t: Z...... ........ <- 0 (bit Z is cleared)
+                // w:                  <- 1
+                _tempAddress &= ~0b1111111100000000; //Unset the upper byte
+                _tempAddress |= (val & 0b111111) << 8;
             }
             
             _addressFlip = !_addressFlip;

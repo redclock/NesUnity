@@ -47,13 +47,6 @@ public class CpuMemory
         return ReadByte(address) + (ReadByte(address + 1) << 8);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void WriteWord(int address, int word)
-    {
-        WriteByte(address, (byte) (word & 0xFF));
-        WriteByte(address + 1, (byte) (word >> 8));
-    }
-
     public byte ReadByte(int address)
     {
         if (address < 0x2000)

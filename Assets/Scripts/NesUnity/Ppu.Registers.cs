@@ -22,7 +22,6 @@ namespace NesUnity
         // vertical blanking interval (0: off; 1: on)
         public struct PpuCtrlReg
         {
-            public int BaseNameTableAddress;
             public int VRamIncrement;
             public int SpriteChrAddress;
             public int BackgroundChrAddress;
@@ -32,13 +31,12 @@ namespace NesUnity
 
             public void FromByte(byte value)
             {
-                BaseNameTableAddress    = ((value & 0b00000011) << 10) + 0x2000;
                 VRamIncrement           = (value & 0b00000100) > 0 ? 32 : 1;
                 SpriteChrAddress        = (value & 0b00001000) > 0 ? 0x1000 : 0x0000;
                 BackgroundChrAddress    = (value & 0b00010000) > 0 ? 0x1000 : 0x0000;
                 SpritesSize             = (value & 0b00100000) > 0 ? 16 : 8;
                 IsMaster                = (value & 0b01000000) > 0;
-                NmiEnabled              = (value & 0x10000000) > 0;
+                NmiEnabled              = (value & 0b10000000) > 0;
             }
         }
 

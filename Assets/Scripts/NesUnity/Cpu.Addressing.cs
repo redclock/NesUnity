@@ -112,6 +112,14 @@ namespace NesUnity
             return (sbyte) NextByte();
         }
 
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteWord(int address, int word)
+        {
+            _memory.WriteByte(address, (byte) (word & 0xFF));
+            _memory.WriteByte(address + 1, (byte) (word >> 8));
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PushByte(byte val)
         {
@@ -129,7 +137,7 @@ namespace NesUnity
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PushWord(int val)
         {
-            _memory.WriteWord(0x100 - 1 + SP, val);
+            WriteWord(0x100 - 1 + SP, val);
             SP -= 2;
         }
 

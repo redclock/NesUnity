@@ -97,6 +97,7 @@ namespace NesUnity
             SP = 0xFD;
             Cycle = 7;
             TotalCycle = 0;
+            PC = pc;
             if (pc < 0)
                 PC = _memory.GetInterruptVector(Interrupt.Reset);
             _halted = false;

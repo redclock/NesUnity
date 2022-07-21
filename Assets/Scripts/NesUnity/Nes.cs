@@ -22,7 +22,7 @@ namespace NesUnity
             if (!_rom.ReadFromBytes(romBytes))
                 return false;
             _cpu.Reset(pc);
-
+            _ppu.Reset();
             return true;
         }
     }
