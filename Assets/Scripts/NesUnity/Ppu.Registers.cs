@@ -110,7 +110,7 @@ namespace NesUnity
                 int s = OpenBus & 0x1F;
                 s |= (SpriteOverflow ? 1 : 0) << 5;
                 s |= (Sprite0Hit ? 1 : 0) << 6;
-                s |= (VBlank ? 1 : 0) << 6;
+                s |= (VBlank ? 1 : 0) << 7;
                 return (byte)s;
             }
         }

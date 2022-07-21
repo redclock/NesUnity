@@ -28,5 +28,10 @@ namespace NesUnity
             _addressFlip = false;
             _lastReadData = 0;
         }
+
+        public void Tick()
+        {
+            PpuStatus.VBlank = true;
+        }
     }
 }

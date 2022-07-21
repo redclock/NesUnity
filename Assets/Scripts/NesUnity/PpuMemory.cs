@@ -23,6 +23,7 @@ public class PpuMemory
     
     // Internal 4K VRAM for 4 Name table
     private byte[] _vram = new byte[0x1000];
+    public byte[] Vram => _vram;
     
     // 64 bytes for palette
     private byte[] _palette = new byte[0x20];
@@ -61,7 +62,7 @@ public class PpuMemory
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int GetPaletteAddress(int address)
+    private int GetPaletteAddress(int address)
     {
         // Mirror 64 bytes
         address &= 0x1F;

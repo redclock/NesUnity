@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using UnityEngine;
 
 namespace NesUnity
@@ -118,6 +119,45 @@ namespace NesUnity
         public Instruction GetCurOp()
         {
             return _instructions[_memory.ReadByte(PC)];
+        }
+
+        public string GetDisassembly(int pc)
+        {
+            byte opcode = _memory.ReadByte(pc);
+            Instruction inst = _instructions[opcode];
+            byte op1 = _memory.ReadByte(pc + 1);
+            byte op2 = _memory.ReadByte(pc + 2);
+            switch (inst.Mode)
+            {
+                case AddressingMode.Implicit:
+                    return inst.Name;
+                case AddressingMode.Accumulator:
+                    return $"{inst.Name} A";
+                case AddressingMode.Immediate:
+                    return $"{inst.Name} #${op1:X2}";
+                case AddressingMode.ZeroPage:
+                    return $"{inst.Name} ${op1:X2}";
+                case AddressingMode.Absolute:
+                    return $"{inst.Name} ${op2:X2}{op1:X2}";
+                case AddressingMode.ZeroPageX:
+                    return $"{inst.Name} ${op1:X2},X";
+                case AddressingMode.ZeroPageY:
+                    return $"{inst.Name} ${op1:X2},Y";
+                case AddressingMode.AbsoluteX:
+                    return $"{inst.Name} ${op2:X2}{op1:X2},Y";
+                case AddressingMode.AbsoluteY:
+                    return $"{inst.Name} ${op2:X2}{op1:X2},X";
+                case AddressingMode.Indirect:
+                    return $"{inst.Name} ${op2:X2}{op1:X2}";
+                case AddressingMode.IndirectX:
+                    return $"{inst.Name} (${op2:X2}{op1:X2}),X";
+                case AddressingMode.IndirectY:
+                    return $"{inst.Name} (${op2:X2}{op1:X2}),Y";
+                case AddressingMode.Relative:
+                    return $"{inst.Name} ${pc + 2 + (sbyte)op1:X4}";
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
 

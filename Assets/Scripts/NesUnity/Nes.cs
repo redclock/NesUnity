@@ -25,5 +25,14 @@ namespace NesUnity
             _ppu.Reset();
             return true;
         }
+
+        public void Tick()
+        {
+            _ppu.Tick();
+            _ppu.Tick();
+            _ppu.Tick();
+            _cpu.Tick();
+            
+        }
     }
 }
