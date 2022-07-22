@@ -1,3 +1,5 @@
+using Codice.Client.BaseCommands;
+
 namespace NesUnity
 {
     public partial class Ppu
@@ -11,8 +13,8 @@ namespace NesUnity
         private int _tempAddress;
         private int _scrollFineX;
 
-        private const int WIDTH = 256;
-        private const int HEIGHT = 240;
+        private int _currentX;
+        private int _currentY;
         public int TempAddress => _tempAddress;
 
         public static int GetCoarseX(int address)
@@ -30,6 +32,30 @@ namespace NesUnity
             return address & 0b1110000000000;
         }
 
+        private void Step()
+        {
+            _currentX++;
+            if (_currentX == X_CYCLES)
+            {
+                _currentX = 0;
+                _currentY++;
+                if (_currentY == Y_PIXELS)
+                {
+                    TriggerNmi();
+                } else if (_currentY == Y_SCANLINES)
+                {
+                    PpuStatus.VBlank = false;
+                    _currentY = 0;
+                } 
+            }
+        }
+
+        private void TriggerNmi()
+        {
+            PpuStatus.VBlank = true;
+            if (PpuCtrl.NmiEnabled)
+                _nesSys.cpu.TriggerInterrupt(Interrupt.Nmi);
+        }
         
     }
 }

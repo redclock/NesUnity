@@ -5,6 +5,11 @@ namespace NesUnity
         private PpuMemory _memory;
         private Nes _nesSys;
 
+        private const int X_PIXELS = 256;
+        private const int Y_PIXELS = 240;
+        private const int X_CYCLES = 341;
+        private const int Y_SCANLINES = 262;
+
         // 256 bytes OAM for 64 sprites x 4 bytes
 
         public Nes NesSys => _nesSys;
@@ -31,7 +36,7 @@ namespace NesUnity
 
         public void Tick()
         {
-            PpuStatus.VBlank = true;
+            Step();
         }
     }
 }

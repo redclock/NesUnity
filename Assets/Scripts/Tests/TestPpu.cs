@@ -112,13 +112,7 @@ public class TestPpu
             fs.Flush();
         };
         
-        // cpu.OnEndExecute = () =>
-        // {
-        //     fs.WriteLine($" M:{cpu.CurrentOpAddress:X4}");
-        //     fs.Flush();
-        // };
-        int orgCycles = cpu.TotalCycle;
-        while (!cpu.Halted && cpu.TotalCycle < orgCycles + 1000000)
+        while (!cpu.Halted && cpu.TotalCycle < 1000000)
         {
             nes.Tick();
         }
