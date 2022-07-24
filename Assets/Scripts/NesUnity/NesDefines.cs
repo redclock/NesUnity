@@ -32,5 +32,4 @@ namespace NesUnity
         IndirectY, 
         Relative,
     }
-    
 }

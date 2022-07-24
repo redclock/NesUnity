@@ -24,7 +24,7 @@ namespace NesUnity.Mappers
         if (address >= 0x8000)
         {
             address -= 0x8000;
-            if (address < 0x4000)
+            if (address < _rom.prgRom.Length)
                 return _rom.prgRom[address];
             else
                 return _rom.prgRom[address - 0x4000];

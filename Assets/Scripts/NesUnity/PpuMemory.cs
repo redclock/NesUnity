@@ -24,6 +24,7 @@ public class PpuMemory
     // Internal 4K VRAM for 4 Name table
     private byte[] _vram = new byte[0x1000];
     public byte[] Vram => _vram;
+    public byte[] Palette => _palette;
     
     // 64 bytes for palette
     private byte[] _palette = new byte[0x20];
@@ -64,12 +65,14 @@ public class PpuMemory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetPaletteAddress(int address)
     {
-        // Mirror 64 bytes
         address &= 0x1F;
+
+        // Mirror 64 bytes
         // Mirror BG colors
         if (address == 0x10 || address == 0x14 || address == 0x18 || address == 0x1C)
             address -= 0x10;
         
+
         return address;
     }
 
@@ -84,7 +87,7 @@ public class PpuMemory
             return _mapper.ReadByte(address);
         }
 
-        if (address < 0x2FFF)
+        if (address < 0x3F00)
         {
             // $2000-$2FFF
             // Name tables 
@@ -112,7 +115,7 @@ public class PpuMemory
             _mapper.WriteByte(address, val);
         }
 
-        if (address < 0x2FFF)
+        else if (address < 0x3F00)
         {
             // $2000-$2FFF
             // Name tables 
@@ -120,7 +123,7 @@ public class PpuMemory
             _vram[GetNameTableAddress(address)] = val;
         }
 
-        if (address < 0x4000)
+        else if (address < 0x4000)
         {
             // $3F00-$3F1F Palette RAM indexes
             // $3F20-$3FFF Mirrors of $3F00-$3F1F

@@ -10,9 +10,9 @@ using Debug = UnityEngine.Debug;
 public class TestCpu
 {
     [Test]
-    public void TestNesMemory()
+    public void TestNesInterruptVector()
     {
-        byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
+        byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/smb.nes");
         var nes = new Nes();
         
         Assert.True(nes.PowerOn(bytes));
