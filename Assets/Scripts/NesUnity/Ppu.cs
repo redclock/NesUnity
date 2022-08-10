@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace NesUnity
@@ -14,9 +15,18 @@ namespace NesUnity
 
         // 256 bytes OAM for 64 sprites x 4 bytes
 
-        public Nes NesSys => _nesSys;
-        public PpuMemory Memory => _memory;
-        
+        public Nes NesSys
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _nesSys; }
+        }
+
+        public PpuMemory Memory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _memory; }
+        }
+
         public Ppu(Nes nes)
         {
             _nesSys = nes;

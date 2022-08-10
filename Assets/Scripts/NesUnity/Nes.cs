@@ -2,37 +2,35 @@ namespace NesUnity
 {
     public class Nes
     {
-        private Cpu _cpu;
-        private Ppu _ppu;
-        private NesRom _rom;
+        public Cpu cpu;
+        public Ppu ppu;
+        public NesRom rom;
 
-        public Cpu cpu => _cpu;
-        public Ppu ppu => _ppu;
-        public NesRom rom => _rom;
+        public bool isEndScreen;
         
         public Nes()
         {
-            _cpu = new Cpu(this);
-            _ppu = new Ppu(this);
+            cpu = new Cpu(this);
+            ppu = new Ppu(this);
         }
 
         public bool PowerOn(byte[] romBytes, int pc = -1)
         {
-            _rom = new NesRom();
-            if (!_rom.ReadFromBytes(romBytes))
+            rom = new NesRom();
+            if (!rom.ReadFromBytes(romBytes))
                 return false;
-            _cpu.Reset(pc);
-            _ppu.Reset();
+            cpu.Reset(pc);
+            ppu.Reset();
             return true;
         }
 
         public void Tick()
         {
-            _ppu.Tick();
-            _ppu.Tick();
-            _ppu.Tick();
-            _cpu.Tick();
-            
+            isEndScreen = false;
+            ppu.Tick();
+            ppu.Tick();
+            ppu.Tick();
+            cpu.Tick();
         }
     }
 }

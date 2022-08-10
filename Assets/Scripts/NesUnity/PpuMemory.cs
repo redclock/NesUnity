@@ -23,9 +23,18 @@ public class PpuMemory
     
     // Internal 4K VRAM for 4 Name table
     private byte[] _vram = new byte[0x1000];
-    public byte[] Vram => _vram;
-    public byte[] Palette => _palette;
-    
+    public byte[] Vram
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get { return _vram; }
+    }
+
+    public byte[] Palette
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get { return _palette; }
+    }
+
     // 64 bytes for palette
     private byte[] _palette = new byte[0x20];
 

@@ -123,49 +123,13 @@ public class TestPpu
 
     private static Texture2D CreateScreenTexture(Nes nes)
     {
-        int address = nes.ppu.Memory.GetNameTableAddress(0);
-        int addressAttrBase = address + 0x3C0;
-        Color32[] pixels = new Color32[Ppu.Y_PIXELS * Ppu.X_PIXELS];
-        int pixelIndex = (Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS;
-        
-        for (int y = 0; y < Ppu.Y_PIXELS; y++)
-        {
-            int coarseY = y >> 3;
-            int fineY = y & 0b111;
-            for (int coarseX = 0; coarseX < 32; coarseX++)
-            {
-                int addressName = coarseY * 32 + coarseX;
-                int tileIndex = nes.ppu.Memory.Vram[address + addressName];
-                int tileAddress = nes.ppu.PpuCtrl.BackgroundChrAddress + tileIndex * 16 + fineY;
-                byte byte1 = nes.ppu.Memory.ReadByte(tileAddress);
-                byte byte2 = nes.ppu.Memory.ReadByte(tileAddress + 8);
-
-                int addressAttr = coarseY / 4 * 8 + coarseX / 4;
-                byte attr = nes.ppu.Memory.Vram[addressAttrBase + addressAttr];
-
-                // left-top: 0, right-top: 2, left-bottom: 4, right-bottom: 6
-                int attrBit = ((coarseY & 0b10) << 1) | (coarseX & 0b10);
-                int attrByte = ((attr >> attrBit) & 0b11) << 2;
-                // interleave every bit to 2 bits
-                int interleaved = Utils.Interleave8To16(byte1) | (Utils.Interleave8To16(byte2) << 1);
-                int shift = 14;
-                for (int offset = 0; offset < 8; offset++)
-                {
-                    int chr = (interleaved >> shift) & 0b11;
-                    shift -= 2;
-                    int paletteIndex = attrByte | chr;
-                     if (paletteIndex % 4 == 0) 
-                          paletteIndex = 0;
-                    byte colorIndex = nes.ppu.Memory.Palette[paletteIndex];
-                    pixels[pixelIndex + coarseX * 8 + offset] = Ppu.rgbaPalette[colorIndex & 0x3F];
-                }
-            }
-
-            pixelIndex -= Ppu.X_PIXELS;
-        }
-
+        nes.ppu.GenBackground(0);
         Texture2D texture = new Texture2D(Ppu.X_PIXELS, Ppu.Y_PIXELS, TextureFormat.RGBA32, false, false);
-        texture.SetPixels32(pixels);
+        int[] ppuPixels = nes.ppu.pixels;
+        uint[] pixels = new uint[ppuPixels.Length];
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = NesScreenView.rgbaPalette[ppuPixels[i]];
+        texture.SetPixelData(pixels, 0);
         return texture;
     }
 
@@ -205,17 +169,17 @@ public class TestPpu
     {
 
         Texture2D texture = new Texture2D(16 * 16, 4 * 8, TextureFormat.RGBA32, false, false);
-        var colors = texture.GetPixels32(0);
+        var colors = new uint[16 * 16 * 4 * 8];
         int index = 0;
         for (int y = 0; y < 4 * 8; y++)
         {
             for (int x = 0; x < 16 * 16; x++)
             {
                 int i = (3 - y / 8) * 16 + x / 16;
-                colors[index++] = Ppu.rgbaPalette[i];
+                colors[index++] = NesScreenView.rgbaPalette[i];
             }
         }
-        texture.SetPixels32(colors);
+        texture.SetPixelData(colors, 0);
         File.WriteAllBytes("p.png", texture.EncodeToPNG());
     }
 
