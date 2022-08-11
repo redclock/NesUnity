@@ -1,6 +1,6 @@
 # NesUnity - In Progress
 
-An NES emulator based on Unity3D for personally study，uncompleted。
+An NES emulator based on Unity3D for personally study, uncompleted.
 
 ## Current Status:
 
