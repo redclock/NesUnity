@@ -2,6 +2,12 @@
 
 An NES emulator based on Unity3D for personally study，uncompleted。
 
+## Current Status:
+
+Unscrollable background only:
+
+![screen.png](screen.png)
+
 ## Progress & planning:
 
 1. Rom file: 
@@ -10,8 +16,9 @@ An NES emulator based on Unity3D for personally study，uncompleted。
   * Addressing modes ✅
   * Memory mapping ✅
   * Mappers 🔲
-    * NROM only
-  * 6502 instructions
+    * NROM ✅
+    * Other
+  * 6502 instructions ✅
     * official ✅
     * unofficial ✅  [Ref](http://www.oxyron.de/html/opcodes02.html)
     * Tested with nestest.nes log ✅
