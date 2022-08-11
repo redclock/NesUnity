@@ -60,7 +60,7 @@ namespace NesUnity
             _nes.PowerOn(bytes);
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
             do
             {
