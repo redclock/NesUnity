@@ -309,7 +309,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 512, y: 400}
+  m_SizeDelta: {x: 1024, y: 800}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1408907494
 MonoBehaviour:
@@ -323,6 +323,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 039d4d7cf08b4377a145f523f0306dd8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _fileName: smb.nes
 --- !u!114 &1408907495
 MonoBehaviour:
   m_ObjectHideFlags: 0
