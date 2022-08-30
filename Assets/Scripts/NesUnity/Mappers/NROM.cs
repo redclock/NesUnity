@@ -37,6 +37,11 @@ namespace NesUnity.Mappers
         return 0;
     }
 
+    public override int ReadChrRom(int address)
+    {
+        return (_rom.chrRom[address + 8] << 8) | _rom.chrRom[address];
+    }
+
     public override void WriteByte(int address, byte val)
     {
         if (address >= 0x8000)

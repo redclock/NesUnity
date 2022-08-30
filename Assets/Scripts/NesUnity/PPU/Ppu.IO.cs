@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace NesUnity
 {
     public partial class Ppu
@@ -120,6 +122,7 @@ namespace NesUnity
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WritePpuScroll(byte val)
         {
             if (_addressFlip)
@@ -147,6 +150,7 @@ namespace NesUnity
 
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WritePpuAddress(byte val)
         {
             if (_addressFlip)
@@ -156,9 +160,10 @@ namespace NesUnity
                 // t: ....... ABCDEFGH <- d: ABCDEFGH
                 // v: <...all bits...> <- t: <...all bits...>
                 // w:                  <- 0
-                _tempAddress &= ~0b0000000011111111; //Unset the lower byte;
+                _tempAddress &= 0b1111111100000000; //Unset the lower byte;
                 _tempAddress |= val;
                 _ppuAddress = _tempAddress;
+                _drawAddress = _tempAddress;
             }
             else
             {
@@ -167,7 +172,7 @@ namespace NesUnity
                 // t: .CDEFGH ........ <- d: ..CDEFGH
                 // t: Z...... ........ <- 0 (bit Z is cleared)
                 // w:                  <- 1
-                _tempAddress &= ~0b1111111100000000; //Unset the upper byte
+                _tempAddress &= 0b0000000011111111; //Unset the upper byte
                 _tempAddress |= (val & 0b111111) << 8;
             }
             

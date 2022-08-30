@@ -1,4 +1,6 @@
 
+using System.Runtime.CompilerServices;
+
 namespace NesUnity
 {
     public partial class Ppu
@@ -8,8 +10,13 @@ namespace NesUnity
         // ||| || +++++-------- coarse Y scroll
         // ||| ++-------------- nametable select
         // +++----------------- fine Y scroll
+        // current ppu r/w address
         private int _ppuAddress;
+        // left top screen address
         private int _tempAddress;
+        // current draw address
+        private int _drawAddress;
+        
         private int _scrollFineX;
 
         private int _currentX;
@@ -18,16 +25,19 @@ namespace NesUnity
 
         public int[] pixels = new int[Y_PIXELS * X_PIXELS];
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetCoarseX(int address)
         {
             return address & 0b0000000011111;
         } 
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetCoarseY(int address)
         {
             return address & 0b0001111100000;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetFineY(int address)
         {
             return address & 0b1110000000000;
@@ -52,6 +62,25 @@ namespace NesUnity
             }
         }
 
+        private void StepPreScanline(int x)
+        {
+            if (x == 0)
+            {
+                PpuStatus.VBlank = false;
+                PpuStatus.Sprite0Hit = false;
+            } else if (x >= 280 && x <= 304)
+            {
+                // 280 - 304 reload Y
+                // vert(v) = vert(t)
+                _drawAddress = (_drawAddress & 0b1000010000011111) | (_tempAddress & 0b111101111100000);
+            }
+            else if (x == 257)
+            {
+                // 257 - 320
+                _drawAddress = (_drawAddress & 0b1111101111100000) | (_tempAddress & 0b000010000011111);
+            }
+        }
+        
         private void TriggerNmi()
         {
             PpuStatus.VBlank = true;
@@ -76,8 +105,11 @@ namespace NesUnity
                     int addressName = coarseY * 32 + coarseX;
                     int tileIndex = vram[addressBase + addressName];
                     int tileAddress = PpuCtrl.BackgroundChrAddress + tileIndex * 16 + fineY;
-                    byte byte1 = _memory.ReadByte(tileAddress);
-                    byte byte2 = _memory.ReadByte(tileAddress + 8);
+                    int bgPattern = _memory.ReadChrRom(tileAddress);
+                    byte byte1 = (byte)(bgPattern & 0xFF);
+                    byte byte2 = (byte)(bgPattern >> 8);
+                    // interleave every bit to 2 bits
+                    int interleaved = Utils.Interleave8To16(byte1) | (Utils.Interleave8To16(byte2) << 1);
 
                     int addressAttr = coarseY / 4 * 8 + coarseX / 4;
                     byte attr = vram[addressAttrBase + addressAttr];
@@ -85,8 +117,6 @@ namespace NesUnity
                     // left-top: 0, right-top: 2, left-bottom: 4, right-bottom: 6
                     int attrBit = ((coarseY & 0b10) << 1) | (coarseX & 0b10);
                     int attrByte = ((attr >> attrBit) & 0b11) << 2;
-                    // interleave every bit to 2 bits
-                    int interleaved = Utils.Interleave8To16(byte1) | (Utils.Interleave8To16(byte2) << 1);
                     int shift = 14;
                     for (int offset = 0; offset < 8; offset++)
                     {

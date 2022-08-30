@@ -85,6 +85,13 @@ public class PpuMemory
         return address;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int ReadChrRom(int address)
+    {
+        return _mapper.ReadChrRom(address & 0x3FFF);
+    }
+
+
     public byte ReadByte(int address)
     {
         address &= 0x3FFF;
