@@ -46,6 +46,7 @@ public class TestCpu
         controller.Write(1);
         controller.Write(0);
         Assert.AreEqual(1, controller.Read());
+
         Assert.AreEqual(0, controller.Read());
         Assert.AreEqual(0, controller.Read());
         Assert.AreEqual(0, controller.Read());
@@ -54,6 +55,18 @@ public class TestCpu
         Assert.AreEqual(0, controller.Read());
         Assert.AreEqual(1, controller.Read());
         Assert.AreEqual(1, controller.Read());
+    }
+
+    [Test]
+    public void TestControllerCpuPortKeepsOpenBusBits()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        nes.Controller1.SetButton(NesController.Button.A, true);
+        nes.cpu.Memory.WriteByte(0x4016, 1);
+        nes.cpu.Memory.WriteByte(0x4016, 0);
+        Assert.AreEqual(0x41, nes.cpu.Memory.ReadByte(0x4016));
     }
 
     [Test]

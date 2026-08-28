@@ -43,11 +43,11 @@ namespace NesUnity
             PpuStatus.VBlank = false;
             PpuStatus.OpenBus = 0;
             _ppuAddress = 0;
-            _renderAddress = 0;
             _tempAddress = 0;
             _scrollFineX = 0;
             _currentX = 0;
             _currentY = 0;
+            _oddFrame = false;
             _nmiRaisedThisVblank = false;
             _frameReady = false;
             _oamAddress = 0;
@@ -55,6 +55,8 @@ namespace NesUnity
             _lastReadData = 0;
             Array.Clear(_oam, 0, _oam.Length);
             Array.Clear(pixels, 0, pixels.Length);
+            Array.Clear(_lineAddresses, 0, _lineAddresses.Length);
+            Array.Clear(_lineFineX, 0, _lineFineX.Length);
         }
 
         public void Tick()

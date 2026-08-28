@@ -103,6 +103,25 @@ public class TestPpu
     }
 
     [Test]
+    public void TestPpuUsesNtscFrameTiming()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        nes.cpu.Memory.WriteByte(0x2001, 0x08);
+
+        int ppuTicks = 0;
+        while (!nes.isEndScreen && ppuTicks < Ppu.X_CYCLES * Ppu.Y_SCANLINES)
+        {
+            nes.ppu.Tick();
+            ppuTicks++;
+        }
+
+        Assert.True(nes.isEndScreen);
+        Assert.AreEqual(Ppu.X_CYCLES * 241 + 2, ppuTicks);
+    }
+
+    [Test]
     public void TestRunFrameRendersSmbFrame()
     {
         byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/smb.nes");

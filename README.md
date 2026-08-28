@@ -2,6 +2,10 @@
 
 An NES emulator based on Unity3D for personally study, uncompleted.
 
+The current runtime targets desktop NTSC NROM games. CPU instruction execution and
+the implemented PPU/controller paths have automated regression coverage, but this
+is not yet a cycle-accurate or complete NES implementation.
+
 ## Current Status:
 
 Scanline-level background and sprite rendering, keyboard controller input, and NROM games:
@@ -45,3 +49,12 @@ Scanline-level background and sprite rendering, keyboard controller input, and N
   * Triangle
   * Noise
   * DMC
+
+## Accuracy boundaries
+
+Implemented: NTSC 2C02 base frame timing, VBlank/NMI, PPU `v/t/x/w` scroll address
+updates, NameTable mirroring, NROM, OAM DMA, keyboard controller 1, background and
+sprite composition.
+
+Not yet implemented: APU channels, additional mappers, PAL/Dendy timing, exact
+per-dot PPU bus behavior, sprite evaluation hardware bugs, and full open-bus behavior.

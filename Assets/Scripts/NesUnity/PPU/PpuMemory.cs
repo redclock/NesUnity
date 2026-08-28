@@ -162,10 +162,10 @@ public class PpuMemory
                 _mirrorNameTable = new[] {0, 1, 2, 3};
                 break;
             case MirrorMode.Upper:
-                _mirrorNameTable = new[] {0, 0, 0, 0};
+                _mirrorNameTable = new[] {1, 1, 1, 1};
                 break;
             case MirrorMode.Lower:
-                _mirrorNameTable = new[] {1, 1, 1, 1};
+                _mirrorNameTable = new[] {0, 0, 0, 0};
                 break;
         }
     }

@@ -66,7 +66,7 @@ public class CpuMemory
         if (address < 0x4020)
         {
             if (address == 0x4016)
-                return _cpu.NesSys.Controller1.Read();
+                return (byte)(0x40 | _cpu.NesSys.Controller1.Read());
             if (address == 0x4017)
                 return 0x40;
 

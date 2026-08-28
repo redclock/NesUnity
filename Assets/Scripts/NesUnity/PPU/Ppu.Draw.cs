@@ -8,7 +8,6 @@ namespace NesUnity
         // ||| ++-------------- nametable select
         // +++----------------- fine Y scroll
         private int _ppuAddress;
-        private int _renderAddress;
         private int _tempAddress;
         private int _scrollFineX;
 
@@ -16,12 +15,15 @@ namespace NesUnity
         private int _currentY;
         private bool _nmiRaisedThisVblank;
         private bool _frameReady;
+        private bool _oddFrame;
         private readonly bool[] _backgroundOpaque = new bool[X_PIXELS];
         private readonly bool[] _spriteWritten = new bool[X_PIXELS];
+        private readonly int[] _lineAddresses = new int[Y_PIXELS];
+        private readonly int[] _lineFineX = new int[Y_PIXELS];
 
         public int TempAddress => _tempAddress;
         public int CurrentAddress => _ppuAddress;
-        public int RenderAddress => _renderAddress;
+        public int RenderAddress => _ppuAddress;
         public int Scanline => _currentY;
         public int Dot => _currentX;
         public bool FrameReady => _frameReady;
@@ -50,9 +52,15 @@ namespace NesUnity
             if (_currentY == 0 && _currentX == 0)
                 _frameReady = false;
 
+            if (_currentY >= 0 && _currentY < Y_PIXELS && _currentX == 0)
+            {
+                _lineAddresses[_currentY] = _ppuAddress & 0x7FFF;
+                _lineFineX[_currentY] = _scrollFineX;
+                RenderScanline(_currentY);
+            }
+
             if (_currentY == 241 && _currentX == 1)
             {
-                RenderFrame();
                 PpuStatus.VBlank = true;
                 _frameReady = true;
                 _nesSys.isEndScreen = true;
@@ -69,7 +77,32 @@ namespace NesUnity
                 PpuStatus.Sprite0Hit = false;
                 PpuStatus.SpriteOverflow = false;
                 _nmiRaisedThisVblank = false;
-                _renderAddress = _tempAddress & 0x3FFF;
+            }
+
+            if (RenderingEnabled)
+            {
+                if ((_currentY < Y_PIXELS || _currentY == 261) &&
+                    _currentX > 0 && _currentX <= 256 && (_currentX & 7) == 0)
+                    IncrementHorizontal();
+
+                if (_currentX == 256 && (_currentY < Y_PIXELS || _currentY == 261))
+                    IncrementVertical();
+
+                if (_currentX == 257 && (_currentY < Y_PIXELS || _currentY == 261))
+                    CopyHorizontalBits();
+
+                if (_currentY == 261 && _currentX >= 280 && _currentX <= 304)
+                    CopyVerticalBits();
+            }
+
+            // NTSC PPU skips the last pre-render dot on odd frames when
+            // rendering is enabled, yielding a 89342-dot frame.
+            if (_currentY == 261 && _currentX == X_CYCLES - 2 && _oddFrame && RenderingEnabled)
+            {
+                _currentX = 0;
+                _currentY = 0;
+                _oddFrame = false;
+                return;
             }
 
             _currentX++;
@@ -78,8 +111,63 @@ namespace NesUnity
                 _currentX = 0;
                 _currentY++;
                 if (_currentY == Y_SCANLINES)
+                {
                     _currentY = 0;
+                    _oddFrame = !_oddFrame;
+                }
             }
+        }
+
+        private bool RenderingEnabled => PpuMask.ShowBackground || PpuMask.ShowSprites;
+
+        private void IncrementHorizontal()
+        {
+            if ((_ppuAddress & 0x001F) == 31)
+            {
+                _ppuAddress &= ~0x001F;
+                _ppuAddress ^= 0x0400;
+            }
+            else
+            {
+                _ppuAddress++;
+            }
+        }
+
+        private void IncrementVertical()
+        {
+            if ((_ppuAddress & 0x7000) != 0x7000)
+            {
+                _ppuAddress += 0x1000;
+                return;
+            }
+
+            _ppuAddress &= ~0x7000;
+            int coarseY = (_ppuAddress >> 5) & 0x1F;
+            if (coarseY == 29)
+            {
+                coarseY = 0;
+                _ppuAddress ^= 0x0800;
+            }
+            else if (coarseY == 31)
+            {
+                coarseY = 0;
+            }
+            else
+            {
+                coarseY++;
+            }
+
+            _ppuAddress = (_ppuAddress & ~0x03E0) | (coarseY << 5);
+        }
+
+        private void CopyHorizontalBits()
+        {
+            _ppuAddress = (_ppuAddress & ~0x041F) | (_tempAddress & 0x041F);
+        }
+
+        private void CopyVerticalBits()
+        {
+            _ppuAddress = (_ppuAddress & ~0x7BE0) | (_tempAddress & 0x7BE0);
         }
 
         private void RenderFrame()
@@ -105,27 +193,27 @@ namespace NesUnity
 
             if (PpuMask.ShowBackground)
             {
-                int scrollX = (GetCoarseX(_renderAddress) * 8) + _scrollFineX;
-                int scrollY = (((_renderAddress >> 5) & 0x1F) % 30) * 8 + ((_renderAddress >> 12) & 0x07);
-                int nametableX = (_renderAddress >> 10) & 1;
-                int nametableY = (_renderAddress >> 11) & 1;
-                RenderBackgroundLine(scanline, scrollX, scrollY, nametableX, nametableY, true);
+                RenderBackgroundLine(scanline, _lineAddresses[scanline], _lineFineX[scanline], true);
             }
 
             if (PpuMask.ShowSprites)
                 RenderSprites(scanline);
         }
 
-        private void RenderBackgroundLine(int scanline, int scrollX, int scrollY,
-            int nametableX, int nametableY, bool applyMask)
+        private void RenderBackgroundLine(int scanline, int address, int fineXScroll, bool applyMask)
         {
+            int scrollX = (GetCoarseX(address) * 8) + fineXScroll;
+            int scrollY = (((address >> 5) & 0x1F) * 8) + ((address >> 12) & 0x07);
+            int nametableX = (address >> 10) & 1;
+            int nametableY = (address >> 11) & 1;
+
             for (int x = 0; x < X_PIXELS; x++)
             {
                 if (applyMask && x < 8 && !PpuMask.ShowLeft8Background)
                     continue;
 
                 int worldX = scrollX + x;
-                int worldY = scrollY + scanline;
+                int worldY = scrollY;
                 int tileColumn = worldX / 8;
                 int tileRow = worldY / 8;
                 int tileX = tileColumn & 0x1F;
@@ -214,7 +302,7 @@ namespace NesUnity
                     if (chr == 0)
                         continue;
 
-                    if (sprite == 0 && _backgroundOpaque[x] && PpuMask.ShowBackground)
+                    if (sprite == 0 && x > 0 && x < 255 && _backgroundOpaque[x] && PpuMask.ShowBackground)
                         PpuStatus.Sprite0Hit = true;
 
                     bool behindBackground = (attributes & 0x20) != 0;
