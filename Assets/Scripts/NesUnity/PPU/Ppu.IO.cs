@@ -173,7 +173,6 @@ namespace NesUnity
                 _tempAddress &= 0b1111111100000000; //Unset the lower byte;
                 _tempAddress |= val;
                 _ppuAddress = _tempAddress;
-                _drawAddress = _tempAddress;
             }
             else
             {
