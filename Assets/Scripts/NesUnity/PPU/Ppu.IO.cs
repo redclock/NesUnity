@@ -47,6 +47,7 @@ namespace NesUnity
         private byte ReadPpuStatus()
         {
             byte b = PpuStatus.ToByte();
+            PpuStatus.OpenBus = b;
             PpuStatus.VBlank = false;
             _addressFlip = false;
             return b;
@@ -65,6 +66,8 @@ namespace NesUnity
             {
                 _lastReadData = _memory.ReadByte(_ppuAddress - 0x1000);
             }
+
+            PpuStatus.OpenBus = b;
             
             _ppuAddress = (_ppuAddress + PpuCtrl.VRamIncrement) & 0x3FFF;
 
@@ -78,6 +81,7 @@ namespace NesUnity
             switch (reg)
             {
                 case 0: // PPUCTRL
+                    bool wasNmiEnabled = PpuCtrl.NmiEnabled;
                     PpuCtrl.FromByte(val);
                     //Set the nametable in the temp address, this will be reflected in the data address during rendering
                     //t: ...GH.. ........ <- d: ......GH
@@ -85,6 +89,11 @@ namespace NesUnity
                     //ABCDEFGH
                     _tempAddress &= ~(0b11 << 10);           //Unset
                     _tempAddress |= (val & 0b11) << 10;      //Set according to ctrl bits
+                    if (!wasNmiEnabled && PpuCtrl.NmiEnabled && PpuStatus.VBlank && !_nmiRaisedThisVblank)
+                    {
+                        _nmiRaisedThisVblank = true;
+                        _nesSys.cpu.TriggerInterrupt(Interrupt.Nmi);
+                    }
                     return;
                 
                 case 1: // PPUMASK
@@ -117,6 +126,7 @@ namespace NesUnity
                 
                 case 7: // PPUDATA
                     _memory.WriteByte(_ppuAddress, val);
+                    PpuStatus.OpenBus = val;
                     _ppuAddress = (_ppuAddress + PpuCtrl.VRamIncrement) & 0x3FFF;
                     return;
             }

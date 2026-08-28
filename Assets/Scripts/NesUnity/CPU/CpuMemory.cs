@@ -65,8 +65,12 @@ public class CpuMemory
 
         if (address < 0x4020)
         {
-            // $4000-$4020
-            // APU Registers
+            if (address == 0x4016)
+                return _cpu.NesSys.Controller1.Read();
+            if (address == 0x4017)
+                return 0x40;
+
+            // APU Registers and test-mode I/O.
             return 0;
         }
 
@@ -103,9 +107,16 @@ public class CpuMemory
             
         } else if (address < 0x4020)
         {
-            // $4000-$4020
-            // APU Registers
-            // WriteAPURegister(address, val);
+            if (address == 0x4014)
+            {
+                _ppu.CopyOamDma(this, val);
+                _cpu.AddStallCycles(513 + (_cpu.TotalCycle & 1));
+            }
+            else if (address == 0x4016)
+            {
+                _cpu.NesSys.Controller1.Write(val);
+            }
+            // Other APU registers remain intentionally silent.
             
         } else if (address < 0x6000)
         {

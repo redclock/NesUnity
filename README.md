@@ -4,7 +4,7 @@ An NES emulator based on Unity3D for personally study, uncompleted.
 
 ## Current Status:
 
-Unscrollable background only:
+Scanline-level background and sprite rendering, keyboard controller input, and NROM games:
 
 ![screen.png](screen.png)
 
@@ -17,7 +17,7 @@ Unscrollable background only:
   * Memory mapping ✅
   * Mappers 🔲
     * NROM ✅
-    * Other
+    * Other 🔲
   * 6502 instructions ✅
     * official ✅
     * unofficial ✅  [Ref](http://www.oxyron.de/html/opcodes02.html)
@@ -28,21 +28,20 @@ Unscrollable background only:
     * Register ✅
     * IO ✅
     * Palette ✅ 
-  * Backgrounds 🔲
+  * Backgrounds ✅ (scanline-level)
     * NMI interruption ✅
-    * PatternTable 🔲 
-    * NameTable + AttributeTable 🔲
-    * Scrolling
-  * Sprites 
-    * OAM
-    * DMA
-    * Priority
-    * Sprite0 hit
-    * Overscan  
- 4. Input
+    * PatternTable ✅
+    * NameTable + AttributeTable ✅
+    * Scrolling ✅
+  * Sprites
+    * OAM ✅
+    * DMA ✅
+    * Priority ✅
+    * Sprite0 hit ✅
+    * Overscan 🔲
+  4. Input ✅ (keyboard controller 1)
  5. APU
   * Pulse
   * Triangle
   * Noise
   * DMC
-

@@ -16,6 +16,7 @@ namespace NesUnity
         private int _mapperNumber;
         private bool _hasTrainer;
         private bool _hasSRam;
+        public bool HasChrRam { get; private set; }
         public byte[] prgRom;
         public byte[] chrRom;
 
@@ -25,6 +26,9 @@ namespace NesUnity
         
         public bool ReadFromBytes(byte[] bytes)
         {
+            if (bytes == null || bytes.Length == 0)
+                return Error("ROM is empty");
+
             _rawBytes = bytes;
             if (!ReadHeader())
                 return false;
@@ -32,6 +36,8 @@ namespace NesUnity
             chrPatternTable = new PatternTable(chrRom);
             
             mapper = MapperBase.Create(this, _mapperNumber);
+            if (mapper == null)
+                return Error("unsupported mapper " + _mapperNumber);
 
             return true;
         }
@@ -73,6 +79,9 @@ namespace NesUnity
             int sizePrg = _rawBytes[4] * PRG_UNIT;
             int sizeChr = _rawBytes[5] * CHR_UNIT;
 
+            if (sizePrg == 0)
+                return Error("PRG ROM is empty");
+
             prgRom = new byte[sizePrg];
             int  prgRomOffset = HEADER_LEN;
             
@@ -86,10 +95,12 @@ namespace NesUnity
 
             if (sizeChr == 0)
             {
-                 chrRom = new byte[CHR_UNIT];
+                HasChrRam = true;
+                chrRom = new byte[CHR_UNIT];
             }
             else
             {
+                HasChrRam = false;
                 chrRom = new byte[sizeChr];
                 if (_rawBytes.Length < prgRomOffset + sizePrg + sizeChr)
                     return Error("CHR ROM size exceed");
@@ -136,4 +147,3 @@ namespace NesUnity
 
     }   
 }
-

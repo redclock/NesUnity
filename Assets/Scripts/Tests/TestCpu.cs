@@ -5,6 +5,7 @@ using System.Linq;
 using NesUnity;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using Debug = UnityEngine.Debug;
 
 public class TestCpu
@@ -21,6 +22,38 @@ public class TestCpu
         int irq = nes.cpu.Memory.GetInterruptVector(Interrupt.Irq);
         
         Debug.LogFormat("NMI = ${0:X4} RST = ${1:X4} IRQ = ${2:X4}", nmi, reset, irq);
+    }
+
+    [Test]
+    public void TestUnsupportedMapperFailsCleanly()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/dk3.nes");
+        var nes = new Nes();
+
+        LogAssert.Expect(LogType.Error, "Unsupported Mapper 3");
+        LogAssert.Expect(LogType.Error, "Nes error: unsupported mapper 3");
+        Assert.False(nes.PowerOn(bytes));
+    }
+
+    [Test]
+    public void TestControllerSerialRead()
+    {
+        var controller = new NesController();
+        controller.SetButton(NesController.Button.A, true);
+        controller.SetButton(NesController.Button.Up, true);
+        controller.SetButton(NesController.Button.Right, true);
+
+        controller.Write(1);
+        controller.Write(0);
+        Assert.AreEqual(1, controller.Read());
+        Assert.AreEqual(0, controller.Read());
+        Assert.AreEqual(0, controller.Read());
+        Assert.AreEqual(0, controller.Read());
+        Assert.AreEqual(1, controller.Read());
+        Assert.AreEqual(0, controller.Read());
+        Assert.AreEqual(0, controller.Read());
+        Assert.AreEqual(1, controller.Read());
+        Assert.AreEqual(1, controller.Read());
     }
 
     [Test]

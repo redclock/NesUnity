@@ -48,6 +48,12 @@ namespace NesUnity
             return true;
         }
 
+        public void AddStallCycles(int cycles)
+        {
+            if (cycles > 0)
+                Cycle += cycles;
+        }
+
         private void ExecuteOpcode()
         {
             // Fetch op code

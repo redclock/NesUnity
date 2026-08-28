@@ -46,14 +46,11 @@ namespace NesUnity.Mappers
     {
         if (address >= 0x8000)
         {
-            address -= 0x8000;
-            if (address < 0x4000)
-                _rom.prgRom[address] = val;
-            else
-                _rom.prgRom[address - 0x4000] = val;
+            // NROM PRG is read-only.
         } else if (address < 0x2000)
         {
-            _rom.chrRom[address] = val;
+            if (_rom.HasChrRam)
+                _rom.chrRom[address] = val;
         } else
         {
             Debug.LogErrorFormat("NROM write invalid @ {0}", address);

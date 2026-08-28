@@ -17,6 +17,9 @@ namespace NesUnity
         private RawImage _rawImage;
         
         private Nes _nes;
+        private bool _running;
+        private float _frameAccumulator;
+        private const float FrameTime = 1f / 60f;
         public static readonly uint[] rgbaPalette =
         {
             0xFF7C7C7C, 0xFFFC0000, 0xFFBC0000, 0xFFBC2844,
@@ -43,6 +46,10 @@ namespace NesUnity
         {
             _textures[0] = new Texture2D(Ppu.X_PIXELS, Ppu.Y_PIXELS, TextureFormat.RGBA32, false);
             _textures[1] = new Texture2D(Ppu.X_PIXELS, Ppu.Y_PIXELS, TextureFormat.RGBA32, false);
+            _textures[0].filterMode = FilterMode.Point;
+            _textures[1].filterMode = FilterMode.Point;
+            _textures[0].wrapMode = TextureWrapMode.Clamp;
+            _textures[1].wrapMode = TextureWrapMode.Clamp;
             _currentIndex = 0;
             _rawImage = GetComponent<RawImage>();
             _nes = new Nes();
@@ -56,19 +63,67 @@ namespace NesUnity
 
         private void Start()
         {
-            byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/" + _fileName);
-            _nes.PowerOn(bytes);
+            if (string.IsNullOrWhiteSpace(_fileName))
+            {
+                Debug.LogError("NES ROM filename is empty.");
+                return;
+            }
+
+            string path = Path.Combine(Application.streamingAssetsPath, _fileName);
+            if (!File.Exists(path))
+            {
+                Debug.LogError("NES ROM not found: " + path);
+                return;
+            }
+
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(path);
+                _running = _nes.PowerOn(bytes);
+                if (!_running)
+                    Debug.LogError("Unable to load NES ROM: " + _fileName);
+            }
+            catch (IOException exception)
+            {
+                Debug.LogError("Unable to read NES ROM: " + exception.Message);
+            }
         }
 
-        private void FixedUpdate()
+        private void Update()
         {
-            do
+            if (!_running)
+                return;
+
+            UpdateController();
+            _frameAccumulator += Time.unscaledDeltaTime;
+            int frames = 0;
+            while (_frameAccumulator >= FrameTime && frames++ < 2)
             {
-                _nes.Tick();
-            } while (!_nes.isEndScreen);
-            _nes.ppu.GenBackground(0);
-            //Debug.Log(_nes.cpu.TotalCycle);
-            UploadTexture();
+                if (!_nes.RunFrame())
+                {
+                    _running = false;
+                    Debug.LogError("NES stopped before completing a frame.");
+                    break;
+                }
+
+                UploadTexture();
+                _frameAccumulator -= FrameTime;
+            }
+
+            if (frames == 2)
+                _frameAccumulator = 0;
+        }
+
+        private void UpdateController()
+        {
+            _nes.Controller1.SetButton(NesController.Button.A, Input.GetKey(KeyCode.Z));
+            _nes.Controller1.SetButton(NesController.Button.B, Input.GetKey(KeyCode.X));
+            _nes.Controller1.SetButton(NesController.Button.Select, Input.GetKey(KeyCode.RightShift));
+            _nes.Controller1.SetButton(NesController.Button.Start, Input.GetKey(KeyCode.Return));
+            _nes.Controller1.SetButton(NesController.Button.Up, Input.GetKey(KeyCode.UpArrow));
+            _nes.Controller1.SetButton(NesController.Button.Down, Input.GetKey(KeyCode.DownArrow));
+            _nes.Controller1.SetButton(NesController.Button.Left, Input.GetKey(KeyCode.LeftArrow));
+            _nes.Controller1.SetButton(NesController.Button.Right, Input.GetKey(KeyCode.RightArrow));
         }
 
         private void UploadTexture()

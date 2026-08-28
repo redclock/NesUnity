@@ -64,6 +64,120 @@ public class TestPpu
     }
 
     [Test]
+    public void TestOamDmaCopiesPageAndStallsCpu()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        for (int i = 0; i < 0x100; i++)
+            nes.cpu.Memory.WriteByte(0x0200 + i, (byte)i);
+
+        nes.cpu.Memory.WriteByte(0x2003, 0x20);
+        int beforeTotal = nes.cpu.TotalCycle;
+        int beforeCycle = nes.cpu.Cycle;
+        nes.cpu.Memory.WriteByte(0x4014, 0x02);
+        byte[] oam = nes.ppu.GetOamSnapshot();
+
+        Assert.AreEqual(0, oam[0x20]);
+        Assert.AreEqual(0x7F, oam[0x9F]);
+        Assert.AreEqual(0xFF, oam[0x1F]);
+        Assert.AreEqual(beforeCycle + 513 + (beforeTotal & 1), nes.cpu.Cycle);
+    }
+
+    [Test]
+    public void TestRunFrameRaisesVblankOnce()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        nes.cpu.Memory.WriteByte(0x2000, 0x80);
+
+        Assert.True(nes.RunFrame());
+        Assert.AreEqual(1, nes.FrameCount);
+        Assert.True(nes.FrameReady);
+        Assert.True(nes.ppu.PpuStatus.VBlank);
+
+        Assert.True(nes.RunFrame());
+        Assert.AreEqual(2, nes.FrameCount);
+    }
+
+    [Test]
+    public void TestRunFrameRendersSmbFrame()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/smb.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        for (int i = 0; i < 120; i++)
+            Assert.True(nes.RunFrame());
+
+        int visiblePixels = 0;
+        for (int i = 0; i < nes.ppu.FrameBuffer.Length; i++)
+        {
+            if (nes.ppu.FrameBuffer[i] != 0)
+                visiblePixels++;
+        }
+
+        Assert.Greater(visiblePixels, 1000);
+    }
+
+    [Test]
+    public void TestSmbFrameBackgroundMatchesStaticRenderer()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/smb.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        for (int i = 0; i < 120; i++)
+            Assert.True(nes.RunFrame());
+
+        nes.cpu.Memory.WriteByte(0x2001, 0x0A);
+        nes.ppu.RenderFrameForTest();
+        int[] rendered = (int[])nes.ppu.FrameBuffer.Clone();
+        nes.ppu.GenBackground(0);
+
+        int differentPixels = 0;
+        for (int i = 0; i < rendered.Length; i++)
+        {
+            if (rendered[i] != nes.ppu.FrameBuffer[i])
+                differentPixels++;
+        }
+
+        Assert.AreEqual(0, differentPixels,
+            "Frame-level background rendering must match the existing renderer when scroll is zero.");
+    }
+
+    [Test]
+    public void TestSmbStartAndScrollFrame()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/smb.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        for (int i = 0; i < 30; i++)
+            Assert.True(nes.RunFrame());
+        nes.Controller1.SetButton(NesController.Button.Start, true);
+        nes.Controller1.SetButton(NesController.Button.A, true);
+        for (int i = 0; i < 4; i++)
+            Assert.True(nes.RunFrame());
+        nes.Controller1.SetButton(NesController.Button.Start, false);
+        nes.Controller1.SetButton(NesController.Button.A, false);
+
+        for (int i = 0; i < 120; i++)
+            Assert.True(nes.RunFrame());
+
+        int nonBackdropPixels = 0;
+        for (int i = 0; i < nes.ppu.FrameBuffer.Length; i++)
+        {
+            if (nes.ppu.FrameBuffer[i] != nes.ppu.FrameBuffer[0])
+                nonBackdropPixels++;
+        }
+
+        Assert.Greater(nonBackdropPixels, 2000);
+    }
+
+    [Test]
     public void TestAddress()
     {
         byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
