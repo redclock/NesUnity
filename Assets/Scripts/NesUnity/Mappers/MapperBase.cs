@@ -15,6 +15,12 @@ namespace NesUnity.Mappers {
             {
                 case 0:
                     return new NROM(rom);
+                case 3:
+                    return new CNROM(rom);
+                case 2:
+                    return new UxROM(rom);
+                case 1:
+                    return new MMC1(rom);
                 default:
                     Debug.LogError("Unsupported Mapper " + mapperNumber);
                     return null;

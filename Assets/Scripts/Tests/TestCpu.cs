@@ -6,6 +6,7 @@ using NesUnity;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using NesUnity.Mappers;
 using Debug = UnityEngine.Debug;
 
 public class TestCpu
@@ -27,12 +28,134 @@ public class TestCpu
     [Test]
     public void TestUnsupportedMapperFailsCleanly()
     {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x40);
+        var nes = new Nes();
+
+        LogAssert.Expect(LogType.Error, "Unsupported Mapper 4");
+        LogAssert.Expect(LogType.Error, "Nes error: unsupported mapper 4");
+        Assert.False(nes.PowerOn(bytes));
+    }
+
+    [Test]
+    public void TestCnromMapperSwitchesChrBank()
+    {
         byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/dk3.nes");
         var nes = new Nes();
 
-        LogAssert.Expect(LogType.Error, "Unsupported Mapper 3");
-        LogAssert.Expect(LogType.Error, "Nes error: unsupported mapper 3");
-        Assert.False(nes.PowerOn(bytes));
+        Assert.True(nes.PowerOn(bytes));
+        Assert.IsInstanceOf<CNROM>(nes.rom.mapper);
+        Assert.AreEqual(0, ((CNROM)nes.rom.mapper).ChrBank);
+
+        byte firstBank = nes.ppu.Memory.ReadByte(0x0001);
+        nes.cpu.Memory.WriteByte(0x8000, 1);
+        byte secondBank = nes.ppu.Memory.ReadByte(0x0001);
+
+        Assert.AreEqual(1, ((CNROM)nes.rom.mapper).ChrBank);
+        Assert.AreNotEqual(firstBank, secondBank);
+    }
+
+    [Test]
+    public void TestUxromSwitchesPrgBankAndKeepsLastBankFixed()
+    {
+        const int prgBanks = 4;
+        byte[] bytes = new byte[16 + prgBanks * 0x4000];
+        bytes[0] = (byte)'N';
+        bytes[1] = (byte)'E';
+        bytes[2] = (byte)'S';
+        bytes[3] = 0x1A;
+        bytes[4] = prgBanks;
+        bytes[5] = 0; // CHR RAM
+        bytes[6] = 0x20; // Mapper 2
+
+        for (int bank = 0; bank < prgBanks; bank++)
+        {
+            int offset = 16 + bank * 0x4000;
+            for (int i = 0; i < 0x4000; i++)
+                bytes[offset + i] = (byte)(0x10 + bank);
+        }
+
+        int vector = 16 + (prgBanks - 1) * 0x4000 + 0x3FFA;
+        bytes[vector] = 0x00;
+        bytes[vector + 1] = 0xC0;
+        bytes[vector + 2] = 0x00;
+        bytes[vector + 3] = 0xC0;
+        bytes[vector + 4] = 0x00;
+        bytes[vector + 5] = 0xC0;
+
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        Assert.IsInstanceOf<UxROM>(nes.rom.mapper);
+        Assert.AreEqual(0x10, nes.cpu.Memory.ReadByte(0x8000));
+        Assert.AreEqual(0x13, nes.cpu.Memory.ReadByte(0xC000));
+
+        nes.cpu.Memory.WriteByte(0x8000, 2);
+        Assert.AreEqual(2, ((UxROM)nes.rom.mapper).PrgBank);
+        Assert.AreEqual(0x12, nes.cpu.Memory.ReadByte(0x8000));
+        Assert.AreEqual(0x13, nes.cpu.Memory.ReadByte(0xC000));
+
+        nes.ppu.Memory.WriteByte(0x0010, 0xA5);
+        Assert.AreEqual(0xA5, nes.ppu.Memory.ReadByte(0x0010));
+    }
+
+    [Test]
+    public void TestMmc1SerialWritesSwitchPrgAndChrBanks()
+    {
+        const int prgBanks = 4;
+        const int chrBanks = 2;
+        byte[] bytes = new byte[16 + prgBanks * 0x4000 + chrBanks * 0x2000];
+        bytes[0] = (byte)'N';
+        bytes[1] = (byte)'E';
+        bytes[2] = (byte)'S';
+        bytes[3] = 0x1A;
+        bytes[4] = prgBanks;
+        bytes[5] = chrBanks;
+        bytes[6] = 0x10; // Mapper 1
+
+        for (int bank = 0; bank < prgBanks; bank++)
+        {
+            int offset = 16 + bank * 0x4000;
+            for (int i = 0; i < 0x4000; i++)
+                bytes[offset + i] = (byte)(0x20 + bank);
+        }
+
+        int chrOffset = 16 + prgBanks * 0x4000;
+        for (int bank = 0; bank < chrBanks; bank++)
+        {
+            int offset = chrOffset + bank * 0x2000;
+            for (int i = 0; i < 0x2000; i++)
+                bytes[offset + i] = (byte)(0x60 + bank);
+        }
+
+        int vector = 16 + (prgBanks - 1) * 0x4000 + 0x3FFA;
+        bytes[vector] = 0x00;
+        bytes[vector + 1] = 0xC0;
+        bytes[vector + 2] = 0x00;
+        bytes[vector + 3] = 0xC0;
+        bytes[vector + 4] = 0x00;
+        bytes[vector + 5] = 0xC0;
+
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        Assert.IsInstanceOf<MMC1>(nes.rom.mapper);
+        var mapper = (MMC1)nes.rom.mapper;
+        Assert.AreEqual(0x20, nes.cpu.Memory.ReadByte(0x8000));
+        Assert.AreEqual(0x23, nes.cpu.Memory.ReadByte(0xC000));
+
+        WriteMmc1Register(nes, 0xE000, 2);
+        Assert.AreEqual(2, mapper.PrgBank);
+        Assert.AreEqual(0x22, nes.cpu.Memory.ReadByte(0x8000));
+        Assert.AreEqual(0x23, nes.cpu.Memory.ReadByte(0xC000));
+
+        WriteMmc1Register(nes, 0x8000, 0x1C);
+        WriteMmc1Register(nes, 0xA000, 2);
+        Assert.AreEqual(0x61, nes.ppu.Memory.ReadByte(0x0000));
+    }
+
+    private static void WriteMmc1Register(Nes nes, int address, int value)
+    {
+        for (int bit = 0; bit < 5; bit++)
+            nes.cpu.Memory.WriteByte(address, (byte)((value >> bit) & 1));
     }
 
     [Test]
@@ -93,7 +216,7 @@ public class TestCpu
         int index = 0;
         var logs = ReadNesTestLog();
         
-        using StreamWriter fs = File.CreateText("result.txt");
+        using StreamWriter fs = File.CreateText("/tmp/nesunity-cpu-result.txt");
         bool isFinished = false;
         cpu.OnBeforeExecute = () =>
         {

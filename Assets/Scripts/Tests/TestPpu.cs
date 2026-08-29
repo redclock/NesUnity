@@ -42,6 +42,113 @@ public class TestPpu
     }
 
     [Test]
+    public void TestPpuScrollAndAddressState()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        nes.cpu.Memory.WriteByte(0x2005, 0xB6);
+        Assert.AreEqual(6, nes.ppu.FineXScroll);
+        Assert.True(nes.ppu.AddressWriteToggle);
+        Assert.AreEqual(0x16, Ppu.GetCoarseX(nes.ppu.TempAddress));
+
+        nes.cpu.Memory.WriteByte(0x2005, 0x62);
+        Assert.False(nes.ppu.AddressWriteToggle);
+        Assert.AreEqual(0x0C, Ppu.GetCoarseYValue(nes.ppu.TempAddress));
+        Assert.AreEqual(2, Ppu.GetFineYValue(nes.ppu.TempAddress));
+
+        nes.cpu.Memory.WriteByte(0x2006, 0x3F);
+        Assert.True(nes.ppu.AddressWriteToggle);
+        nes.cpu.Memory.WriteByte(0x2006, 0x10);
+        Assert.False(nes.ppu.AddressWriteToggle);
+        Assert.AreEqual(0x3F10, nes.ppu.CurrentAddress);
+    }
+
+    [Test]
+    public void TestPpuDataReadBufferAndIncrement()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        nes.ppu.Memory.WriteByte(0x2000, 0x12);
+
+        nes.cpu.Memory.WriteByte(0x2006, 0x20);
+        nes.cpu.Memory.WriteByte(0x2006, 0x00);
+        Assert.AreEqual(0x00, nes.cpu.Memory.ReadByte(0x2007));
+        Assert.AreEqual(0x12, nes.cpu.Memory.ReadByte(0x2007));
+        Assert.AreEqual(0x2002, nes.ppu.CurrentAddress);
+
+        nes.cpu.Memory.WriteByte(0x2000, 0x04);
+        nes.cpu.Memory.WriteByte(0x2006, 0x20);
+        nes.cpu.Memory.WriteByte(0x2006, 0x00);
+        nes.cpu.Memory.WriteByte(0x2007, 0x34);
+        Assert.AreEqual(0x2020, nes.ppu.CurrentAddress);
+    }
+
+    [Test]
+    public void TestPpuStatusReadClearsVblankAndWriteToggle()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        nes.cpu.Memory.WriteByte(0x2005, 0x01);
+        Assert.True(nes.ppu.AddressWriteToggle);
+        nes.ppu.PpuStatus.VBlank = true;
+        byte status = nes.cpu.Memory.ReadByte(0x2002);
+
+        Assert.True((status & 0x80) != 0);
+        Assert.False(nes.ppu.PpuStatus.VBlank);
+        Assert.False(nes.ppu.AddressWriteToggle);
+    }
+
+    [Test]
+    public void TestPpuGreyscaleMasksPaletteLowBits()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        bytes[5] = 0;
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        for (int i = 0; i < 8; i++)
+        {
+            nes.ppu.Memory.WriteByte(i, 0xFF);
+            nes.ppu.Memory.WriteByte(8 + i, 0x00);
+        }
+        nes.ppu.Memory.WriteByte(0x3F00, 0x0F);
+        nes.ppu.Memory.WriteByte(0x3F01, 0x2F);
+        nes.cpu.Memory.WriteByte(0x2001, 0x0B);
+        nes.ppu.Tick();
+
+        Assert.AreEqual(0x20, nes.ppu.FrameBuffer[(Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS]);
+    }
+
+    [Test]
+    public void TestNmiLineUsesVblankAndControlEdge()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        nes.cpu.Memory.WriteByte(0x2000, 0x80);
+        int ticks = 0;
+        while (!nes.ppu.PpuStatus.VBlank && ticks++ < Ppu.X_CYCLES * 242)
+            nes.ppu.Tick();
+
+        Assert.True(nes.ppu.PpuStatus.VBlank);
+        Assert.AreEqual(nes.cpu.Memory.GetInterruptVector(Interrupt.Nmi), nes.cpu.PC);
+        int cycleAfterFirstNmi = nes.cpu.Cycle;
+
+        nes.cpu.Memory.WriteByte(0x2000, 0x00);
+        nes.cpu.Memory.WriteByte(0x2000, 0x80);
+        Assert.AreEqual(cycleAfterFirstNmi + 7, nes.cpu.Cycle);
+
+        nes.cpu.Memory.ReadByte(0x2002);
+        Assert.False(nes.ppu.PpuStatus.VBlank);
+    }
+
+    [Test]
     public void TestOam()
     {
         byte[] bytes = File.ReadAllBytes( Application.streamingAssetsPath + "/nestest.nes");
@@ -86,6 +193,30 @@ public class TestPpu
     }
 
     [Test]
+    public void TestSpriteEvaluationSelectsEightAndSetsOverflow()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+
+        nes.cpu.Memory.WriteByte(0x2001, 0x18);
+        nes.cpu.Memory.WriteByte(0x2003, 0);
+        for (int sprite = 0; sprite < 9; sprite++)
+        {
+            nes.cpu.Memory.WriteByte(0x2004, 0);
+            nes.cpu.Memory.WriteByte(0x2004, 0);
+            nes.cpu.Memory.WriteByte(0x2004, 0);
+            nes.cpu.Memory.WriteByte(0x2004, (byte)(sprite * 8));
+        }
+
+        for (int i = 0; i < Ppu.X_CYCLES + 1; i++)
+            nes.ppu.Tick();
+
+        Assert.AreEqual(8, nes.ppu.SelectedSpriteCount);
+        Assert.True(nes.ppu.PpuStatus.SpriteOverflow);
+    }
+
+    [Test]
     public void TestRunFrameRaisesVblankOnce()
     {
         byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
@@ -119,6 +250,48 @@ public class TestPpu
 
         Assert.True(nes.isEndScreen);
         Assert.AreEqual(Ppu.X_CYCLES * 241 + 2, ppuTicks);
+    }
+
+    [Test]
+    public void TestPpuOddFrameSkipsOneDotWhenRendering()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        nes.cpu.Memory.WriteByte(0x2001, 0x08);
+
+        int firstFrameDots = 0;
+        do
+        {
+            nes.ppu.Tick();
+            firstFrameDots++;
+        } while (nes.ppu.Scanline != 0 || nes.ppu.Dot != 0);
+
+        int secondFrameDots = 0;
+        do
+        {
+            nes.ppu.Tick();
+            secondFrameDots++;
+        } while (nes.ppu.Scanline != 0 || nes.ppu.Dot != 0);
+
+        Assert.AreEqual(Ppu.X_CYCLES * Ppu.Y_SCANLINES, firstFrameDots);
+        Assert.AreEqual(Ppu.X_CYCLES * Ppu.Y_SCANLINES - 1, secondFrameDots);
+    }
+
+    [Test]
+    public void TestPpuHorizontalAddressWrapsAtTileBoundary()
+    {
+        byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/nestest.nes");
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        nes.cpu.Memory.WriteByte(0x2001, 0x08);
+        nes.cpu.Memory.WriteByte(0x2006, 0x20);
+        nes.cpu.Memory.WriteByte(0x2006, 0x1F);
+
+        for (int i = 0; i < 9; i++)
+            nes.ppu.Tick();
+
+        Assert.AreEqual(0x2400, nes.ppu.CurrentAddress);
     }
 
     [Test]
@@ -229,7 +402,7 @@ public class TestPpu
 
         Texture2D texture = CreateScreenTexture(nes);
         byte[] textureBytes = texture.EncodeToPNG();
-        File.WriteAllBytes("screen.png", textureBytes);
+        File.WriteAllBytes("/tmp/nesunity-screen.png", textureBytes);
 
         OutputNameTable(nes);
     }
@@ -251,7 +424,7 @@ public class TestPpu
             sb.AppendLine();
         }
 
-        File.WriteAllText("nametable.txt", sb.ToString());
+        File.WriteAllText("/tmp/nesunity-nametable.txt", sb.ToString());
     }
 
     private static Texture2D CreateScreenTexture(Nes nes)
@@ -268,7 +441,7 @@ public class TestPpu
 
     private static void TickCpu(Nes nes, int tickCount)
     {
-        using StreamWriter fs = File.CreateText("result.txt");
+        using StreamWriter fs = File.CreateText("/tmp/nesunity-result.txt");
 
         Cpu cpu = nes.cpu;
 
@@ -313,7 +486,7 @@ public class TestPpu
             }
         }
         texture.SetPixelData(colors, 0);
-        File.WriteAllBytes("p.png", texture.EncodeToPNG());
+        File.WriteAllBytes("/tmp/nesunity-palette.png", texture.EncodeToPNG());
     }
 
 }

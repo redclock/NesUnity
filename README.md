@@ -2,7 +2,7 @@
 
 An NES emulator based on Unity3D for personally study, uncompleted.
 
-The current runtime targets desktop NTSC NROM games. CPU instruction execution and
+The current runtime targets desktop NTSC NROM/CNROM/UxROM games. CPU instruction execution and
 the implemented PPU/controller paths have automated regression coverage, but this
 is not yet a cycle-accurate or complete NES implementation.
 
@@ -21,6 +21,9 @@ Scanline-level background and sprite rendering, keyboard controller input, and N
   * Memory mapping ✅
   * Mappers 🔲
     * NROM ✅
+    * CNROM ✅
+    * UxROM ✅
+    * MMC1 ✅
     * Other 🔲
   * 6502 instructions ✅
     * official ✅

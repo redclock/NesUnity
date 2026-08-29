@@ -13,19 +13,34 @@ namespace NesUnity
 
         private int _currentX;
         private int _currentY;
-        private bool _nmiRaisedThisVblank;
+        private bool _nmiLine;
         private bool _frameReady;
         private bool _oddFrame;
         private readonly bool[] _backgroundOpaque = new bool[X_PIXELS];
         private readonly bool[] _spriteWritten = new bool[X_PIXELS];
         private readonly int[] _lineAddresses = new int[Y_PIXELS];
         private readonly int[] _lineFineX = new int[Y_PIXELS];
+        private readonly SpriteEntry[] _scanlineSprites = new SpriteEntry[8];
+        private int _scanlineSpriteCount;
+
+        private struct SpriteEntry
+        {
+            public byte Y;
+            public byte Tile;
+            public byte Attributes;
+            public byte X;
+            public int Index;
+        }
 
         public int TempAddress => _tempAddress;
         public int CurrentAddress => _ppuAddress;
         public int RenderAddress => _ppuAddress;
+        public int FineXScroll => _scrollFineX;
+        public bool AddressWriteToggle => _addressFlip;
         public int Scanline => _currentY;
         public int Dot => _currentX;
+        public bool IsOddFrame => _oddFrame;
+        public int SelectedSpriteCount => _scanlineSpriteCount;
         public bool FrameReady => _frameReady;
 
         // Palette indexes, stored bottom row first for Unity Texture2D.
@@ -47,6 +62,16 @@ namespace NesUnity
             return address & 0b1110000000000;
         }
 
+        public static int GetCoarseYValue(int address)
+        {
+            return (address >> 5) & 0x1F;
+        }
+
+        public static int GetFineYValue(int address)
+        {
+            return (address >> 12) & 0x07;
+        }
+
         private void Step()
         {
             if (_currentY == 0 && _currentX == 0)
@@ -56,6 +81,10 @@ namespace NesUnity
             {
                 _lineAddresses[_currentY] = _ppuAddress & 0x7FFF;
                 _lineFineX[_currentY] = _scrollFineX;
+                if (RenderingEnabled)
+                    EvaluateSprites(_currentY);
+                else
+                    _scanlineSpriteCount = 0;
                 RenderScanline(_currentY);
             }
 
@@ -64,11 +93,7 @@ namespace NesUnity
                 PpuStatus.VBlank = true;
                 _frameReady = true;
                 _nesSys.isEndScreen = true;
-                if (!_nmiRaisedThisVblank && PpuCtrl.NmiEnabled)
-                {
-                    _nmiRaisedThisVblank = true;
-                    _nesSys.cpu.TriggerInterrupt(Interrupt.Nmi);
-                }
+                UpdateNmiLine();
             }
 
             if (_currentY == 261 && _currentX == 1)
@@ -76,7 +101,7 @@ namespace NesUnity
                 PpuStatus.VBlank = false;
                 PpuStatus.Sprite0Hit = false;
                 PpuStatus.SpriteOverflow = false;
-                _nmiRaisedThisVblank = false;
+                UpdateNmiLine();
             }
 
             if (RenderingEnabled)
@@ -119,6 +144,14 @@ namespace NesUnity
         }
 
         private bool RenderingEnabled => PpuMask.ShowBackground || PpuMask.ShowSprites;
+
+        private void UpdateNmiLine()
+        {
+            bool line = PpuStatus.VBlank && PpuCtrl.NmiEnabled;
+            if (line && !_nmiLine)
+                _nesSys.cpu.TriggerInterrupt(Interrupt.Nmi);
+            _nmiLine = line;
+        }
 
         private void IncrementHorizontal()
         {
@@ -200,10 +233,38 @@ namespace NesUnity
                 RenderSprites(scanline);
         }
 
+        private void EvaluateSprites(int scanline)
+        {
+            _scanlineSpriteCount = 0;
+            int height = PpuCtrl.SpritesSize;
+            for (int sprite = 0; sprite < 64; sprite++)
+            {
+                int offset = sprite * 4;
+                int row = scanline - _oam[offset] - 1;
+                if (row < 0 || row >= height)
+                    continue;
+
+                if (_scanlineSpriteCount >= _scanlineSprites.Length)
+                {
+                    PpuStatus.SpriteOverflow = true;
+                    continue;
+                }
+
+                _scanlineSprites[_scanlineSpriteCount++] = new SpriteEntry
+                {
+                    Y = _oam[offset],
+                    Tile = _oam[offset + 1],
+                    Attributes = _oam[offset + 2],
+                    X = _oam[offset + 3],
+                    Index = sprite
+                };
+            }
+        }
+
         private void RenderBackgroundLine(int scanline, int address, int fineXScroll, bool applyMask)
         {
             int scrollX = (GetCoarseX(address) * 8) + fineXScroll;
-            int scrollY = (((address >> 5) & 0x1F) * 8) + ((address >> 12) & 0x07);
+            int scrollY = (GetCoarseYValue(address) * 8) + GetFineYValue(address);
             int nametableX = (address >> 10) & 1;
             int nametableY = (address >> 11) & 1;
 
@@ -245,26 +306,15 @@ namespace NesUnity
         private void RenderSprites(int scanline)
         {
             int height = PpuCtrl.SpritesSize;
-            int spritesOnLine = 0;
 
-            for (int sprite = 0; sprite < 64; sprite++)
+            for (int i = 0; i < _scanlineSpriteCount; i++)
             {
-                int offset = sprite * 4;
-                int spriteY = _oam[offset];
-                int row = scanline - spriteY - 1;
-                if (row < 0 || row >= height)
-                    continue;
-
-                if (spritesOnLine >= 8)
-                {
-                    PpuStatus.SpriteOverflow = true;
-                    continue;
-                }
-
-                spritesOnLine++;
-                int tile = _oam[offset + 1];
-                int attributes = _oam[offset + 2];
-                int spriteX = _oam[offset + 3];
+                SpriteEntry entry = _scanlineSprites[i];
+                int sprite = entry.Index;
+                int row = scanline - entry.Y - 1;
+                int tile = entry.Tile;
+                int attributes = entry.Attributes;
+                int spriteX = entry.X;
                 bool flipHorizontal = (attributes & 0x40) != 0;
                 bool flipVertical = (attributes & 0x80) != 0;
                 if (flipVertical)
@@ -318,7 +368,8 @@ namespace NesUnity
 
         private int ReadPaletteColor(int paletteIndex)
         {
-            return _memory.ReadByte(0x3F00 + paletteIndex) & 0x3F;
+            int color = _memory.ReadByte(0x3F00 + paletteIndex) & 0x3F;
+            return PpuMask.Greyscale ? color & 0x30 : color;
         }
 
         private void SetPixel(int x, int y, int color)

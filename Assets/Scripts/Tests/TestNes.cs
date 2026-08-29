@@ -13,7 +13,7 @@ public class TestNes
         Assert.True(nes.ReadFromBytes(bytes));
         var texture = CreatePatternTexture(nes.chrPatternTable);
         byte[] textureBytes = texture.EncodeToPNG();
-        File.WriteAllBytes("Assets/chr.png", textureBytes);
+        File.WriteAllBytes("/tmp/nesunity-chr.png", textureBytes);
     }
 
     private Texture2D CreatePatternTexture(PatternTable patternTable)

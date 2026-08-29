@@ -48,7 +48,7 @@ namespace NesUnity
             _currentX = 0;
             _currentY = 0;
             _oddFrame = false;
-            _nmiRaisedThisVblank = false;
+            _nmiLine = false;
             _frameReady = false;
             _oamAddress = 0;
             _addressFlip = false;
@@ -57,6 +57,7 @@ namespace NesUnity
             Array.Clear(pixels, 0, pixels.Length);
             Array.Clear(_lineAddresses, 0, _lineAddresses.Length);
             Array.Clear(_lineFineX, 0, _lineFineX.Length);
+            _scanlineSpriteCount = 0;
         }
 
         public void Tick()
