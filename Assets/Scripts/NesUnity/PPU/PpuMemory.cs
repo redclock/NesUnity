@@ -39,13 +39,15 @@ public class PpuMemory
     private byte[] _palette = new byte[0x20];
 
     private int[] _mirrorNameTable;
+    private MirrorMode _currentMirrorMode;
     private MapperBase _mapper;
     
     public PpuMemory(Ppu ppu)
     {
         _ppu = ppu;
         _mapper = ppu.NesSys.rom.mapper;
-        InitNameTableMap();
+        _currentMirrorMode = ppu.NesSys.rom.mirrorMode;
+        InitNameTableMap(_currentMirrorMode);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -64,6 +66,7 @@ public class PpuMemory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetNameTableAddress(int address)
     {
+        RefreshNameTableMap();
         // Each bank size $400 = 1K
         int bank = (address  & 0x0FFF) >> 10;
             
@@ -105,6 +108,7 @@ public class PpuMemory
 
         if (address < 0x3F00)
         {
+            RefreshNameTableMap();
             // $2000-$2FFF
             // Name tables 
             // $3000-$3EFF Mirrors of $2000-$2EFF
@@ -133,6 +137,7 @@ public class PpuMemory
 
         else if (address < 0x3F00)
         {
+            RefreshNameTableMap();
             // $2000-$2FFF
             // Name tables 
             // $3000-$3EFF Mirrors of $2000-$2EFF
@@ -148,9 +153,19 @@ public class PpuMemory
 
     }
 
-    private void InitNameTableMap()
+    private void RefreshNameTableMap()
     {
-        switch (_ppu.NesSys.rom.mirrorMode)
+        MirrorMode mode = _mapper.GetMirrorMode(_ppu.NesSys.rom.mirrorMode);
+        if (mode == _currentMirrorMode)
+            return;
+
+        _currentMirrorMode = mode;
+        InitNameTableMap(mode);
+    }
+
+    private void InitNameTableMap(MirrorMode mode)
+    {
+        switch (mode)
         {
             case MirrorMode.Horizontal:
                 _mirrorNameTable = new[] {0, 0, 1, 1};

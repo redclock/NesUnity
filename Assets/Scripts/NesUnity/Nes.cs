@@ -7,6 +7,7 @@ namespace NesUnity
         public NesRom rom;
 
         public NesController Controller1 { get; }
+        public Apu apu { get; }
 
         public bool isEndScreen;
         public bool FrameReady { get; private set; }
@@ -17,6 +18,7 @@ namespace NesUnity
         public Nes()
         {
             Controller1 = new NesController();
+            apu = new Apu();
             cpu = new Cpu(this);
             ppu = new Ppu(this);
         }
@@ -33,9 +35,11 @@ namespace NesUnity
             if (rom.mapper == null)
                 return false;
 
+            rom.mapper.AttachNes(this);
             cpu.Reset(pc);
             ppu.Reset();
             Controller1.Reset();
+            apu.Reset();
             isEndScreen = false;
             FrameReady = false;
             FrameCount = 0;
@@ -48,6 +52,7 @@ namespace NesUnity
             ppu.Tick();
             ppu.Tick();
             cpu.Tick();
+            apu.Tick();
         }
 
         public bool RunFrame()

@@ -2,7 +2,7 @@
 
 An NES emulator based on Unity3D for personally study, uncompleted.
 
-The current runtime targets desktop NTSC NROM/CNROM/UxROM games. CPU instruction execution and
+The current runtime targets desktop NTSC NROM/CNROM/UxROM/MMC1/MMC3 games. CPU instruction execution and
 the implemented PPU/controller paths have automated regression coverage, but this
 is not yet a cycle-accurate or complete NES implementation.
 
@@ -24,6 +24,7 @@ Scanline-level background and sprite rendering, keyboard controller input, and N
     * CNROM ✅
     * UxROM ✅
     * MMC1 ✅
+    * MMC3 ✅ (scanline-level IRQ)
     * Other 🔲
   * 6502 instructions ✅
     * official ✅
@@ -48,16 +49,16 @@ Scanline-level background and sprite rendering, keyboard controller input, and N
     * Overscan 🔲
   4. Input ✅ (keyboard controller 1)
  5. APU
-  * Pulse
-  * Triangle
-  * Noise
-  * DMC
+  * Pulse ✅ (core model, no Unity output yet)
+  * Triangle ✅ (core model, no Unity output yet)
+  * Noise ✅ (core model, no Unity output yet)
+  * DMC (stub)
 
 ## Accuracy boundaries
 
 Implemented: NTSC 2C02 base frame timing, VBlank/NMI, PPU `v/t/x/w` scroll address
-updates, NameTable mirroring, NROM, OAM DMA, keyboard controller 1, background and
+updates, NameTable mirroring, NROM, CNROM, UxROM, MMC1, OAM DMA, keyboard controller 1, background and
 sprite composition.
 
-Not yet implemented: APU channels, additional mappers, PAL/Dendy timing, exact
+Not yet implemented: DMC playback, additional mappers, PAL/Dendy timing, exact
 per-dot PPU bus behavior, sprite evaluation hardware bugs, and full open-bus behavior.

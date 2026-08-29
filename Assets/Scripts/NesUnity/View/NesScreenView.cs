@@ -1,10 +1,11 @@
+using System;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace NesUnity
 {
-    [RequireComponent(typeof(RawImage))]
+    [RequireComponent(typeof(RawImage), typeof(AudioSource))]
     public class NesScreenView: MonoBehaviour
     {
         [SerializeField] private string _fileName;
@@ -15,11 +16,34 @@ namespace NesUnity
         private Texture2D currentBackTexture => _textures[1 - _currentIndex];
 
         private RawImage _rawImage;
+        private AudioSource _audioSource;
+        private AudioClip _audioClip;
+        private int _audioReadCount;
+        private int _audioNonZeroReadCount;
         
         private Nes _nes;
         private bool _running;
         private float _frameAccumulator;
-        private const float FrameTime = 1f / 60f;
+        private const float FrameTime = 29780.5f / Apu.CpuClockHz;
+        private const int AudioPrebufferFrames = 4;
+        public bool IsRunning => _running;
+        public bool IsAudioPlaying => _audioSource != null && _audioSource.isPlaying;
+        public int AudioReadCount => _audioReadCount;
+        public int AudioNonZeroReadCount => _audioNonZeroReadCount;
+        public int AudioPendingSampleCount => _nes == null ? 0 : _nes.apu.PendingSampleCount;
+
+#if UNITY_EDITOR
+        // Editor-only test hook used to verify Unity's audio callback path.
+        public void DebugInjectPulseTone()
+        {
+            if (_nes == null)
+                return;
+            _nes.cpu.Memory.WriteByte(0x4000, 0xBF);
+            _nes.cpu.Memory.WriteByte(0x4002, 0x20);
+            _nes.cpu.Memory.WriteByte(0x4003, 0x08);
+            _nes.cpu.Memory.WriteByte(0x4015, 0x01);
+        }
+#endif
         public static readonly uint[] rgbaPalette =
         {
             0xFF7C7C7C, 0xFFFC0000, 0xFFBC0000, 0xFFBC2844,
@@ -52,13 +76,32 @@ namespace NesUnity
             _textures[1].wrapMode = TextureWrapMode.Clamp;
             _currentIndex = 0;
             _rawImage = GetComponent<RawImage>();
+            _audioSource = GetComponent<AudioSource>();
+            _audioSource.playOnAwake = false;
+            _audioSource.loop = true;
+            _audioSource.spatialBlend = 0f;
+            _audioClip = AudioClip.Create(
+                "NES APU",
+                Apu.SampleRate,
+                1,
+                Apu.SampleRate,
+                true,
+                OnAudioRead,
+                OnAudioSetPosition);
+            _audioSource.clip = _audioClip;
             _nes = new Nes();
         }
 
         private void OnDestroy()
         {
+            _running = false;
+            if (_audioSource != null)
+                _audioSource.Stop();
+            _nes = null;
             Destroy(_textures[0]);
             Destroy(_textures[1]);
+            if (_audioClip != null)
+                Destroy(_audioClip);
         }
 
         private void Start()
@@ -82,6 +125,22 @@ namespace NesUnity
                 _running = _nes.PowerOn(bytes);
                 if (!_running)
                     Debug.LogError("Unable to load NES ROM: " + _fileName);
+                else
+                {
+                    for (int frame = 0; frame < AudioPrebufferFrames; frame++)
+                    {
+                        if (_nes.RunFrame())
+                            continue;
+                        _running = false;
+                        Debug.LogError("NES stopped while preparing audio output.");
+                        break;
+                    }
+                    if (_running)
+                    {
+                        UploadTexture();
+                        _audioSource.Play();
+                    }
+                }
             }
             catch (IOException exception)
             {
@@ -119,7 +178,8 @@ namespace NesUnity
             _nes.Controller1.SetButton(NesController.Button.A, Input.GetKey(KeyCode.Z));
             _nes.Controller1.SetButton(NesController.Button.B, Input.GetKey(KeyCode.X));
             _nes.Controller1.SetButton(NesController.Button.Select, Input.GetKey(KeyCode.RightShift));
-            _nes.Controller1.SetButton(NesController.Button.Start, Input.GetKey(KeyCode.Return));
+            _nes.Controller1.SetButton(NesController.Button.Start,
+                Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.KeypadEnter));
             _nes.Controller1.SetButton(NesController.Button.Up, Input.GetKey(KeyCode.UpArrow));
             _nes.Controller1.SetButton(NesController.Button.Down, Input.GetKey(KeyCode.DownArrow));
             _nes.Controller1.SetButton(NesController.Button.Left, Input.GetKey(KeyCode.LeftArrow));
@@ -135,6 +195,30 @@ namespace NesUnity
             currentBackTexture.Apply(false);
             _currentIndex = 1 - _currentIndex;
             _rawImage.texture = currentTexture;
+        }
+
+        private void OnAudioRead(float[] data)
+        {
+            _audioReadCount++;
+            Nes nes = _nes;
+            if (nes == null)
+            {
+                Array.Clear(data, 0, data.Length);
+                return;
+            }
+            nes.apu.FillAudioBuffer(data, 1);
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (Mathf.Abs(data[i]) > 0.0001f)
+                {
+                    _audioNonZeroReadCount++;
+                    break;
+                }
+            }
+        }
+
+        private void OnAudioSetPosition(int position)
+        {
         }
     }
 }

@@ -68,7 +68,12 @@ public class CpuMemory
             if (address == 0x4016)
                 return (byte)(0x40 | _cpu.NesSys.Controller1.Read());
             if (address == 0x4017)
+                // Controller port 2 is not connected in the first milestone.
+                // $4017 is write-only for the APU frame counter, so reads expose
+                // the controller port's open-bus high bits and zero data bits.
                 return 0x40;
+            if (address == 0x4015)
+                return (byte)(0x40 | _cpu.NesSys.apu.ReadRegister(address));
 
             // APU Registers and test-mode I/O.
             return 0;
@@ -85,6 +90,8 @@ public class CpuMemory
         {
             // $6000-$7FFF
             // Save RAM
+            if (!_mapper.PrgRamEnabled)
+                return 0;
             return _sram[address - 0x6000];
         }
 
@@ -116,6 +123,10 @@ public class CpuMemory
             {
                 _cpu.NesSys.Controller1.Write(val);
             }
+            else if (address >= 0x4000 && address <= 0x4017)
+            {
+                _cpu.NesSys.apu.WriteRegister(address, val);
+            }
             // Other APU registers remain intentionally silent.
             
         } else if (address < 0x6000)
@@ -127,7 +138,8 @@ public class CpuMemory
         {
             // $6000-$7FFF
             // Save RAM
-            _sram[address - 0x6000] = val;
+            if (_mapper.PrgRamWritable)
+                _sram[address - 0x6000] = val;
             
         } else
         {

@@ -15,6 +15,18 @@ namespace NesUnity.Mappers
         public byte PrgBank => _prgBank;
         public byte ChrBank0 => _chrBank0;
         public byte ChrBank1 => _chrBank1;
+        public override bool PrgRamEnabled => (_prgBank & 0x10) == 0;
+
+        public override MirrorMode GetMirrorMode(MirrorMode fallback)
+        {
+            switch (_control & 0x03)
+            {
+                case 0: return MirrorMode.Lower;
+                case 1: return MirrorMode.Upper;
+                case 2: return MirrorMode.Vertical;
+                default: return MirrorMode.Horizontal;
+            }
+        }
 
         public MMC1(NesRom rom)
         {
@@ -35,18 +47,18 @@ namespace NesUnity.Mappers
                 int offset;
                 if (mode <= 1)
                 {
-                    int pair = (_prgBank & 0x0E) % bankCount;
+                    int pair = ((_prgBank & 0x0E) % bankCount);
                     bank = address < 0xC000 ? pair : (pair + 1) % bankCount;
                     offset = address & 0x3FFF;
                 }
                 else if (mode == 2)
                 {
-                    bank = address < 0xC000 ? 0 : _prgBank % bankCount;
+                    bank = address < 0xC000 ? 0 : (_prgBank & 0x0F) % bankCount;
                     offset = address & 0x3FFF;
                 }
                 else
                 {
-                    bank = address < 0xC000 ? _prgBank % bankCount : bankCount - 1;
+                    bank = address < 0xC000 ? (_prgBank & 0x0F) % bankCount : bankCount - 1;
                     offset = address & 0x3FFF;
                 }
 

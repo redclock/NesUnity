@@ -77,6 +77,10 @@ namespace NesUnity
             if (_currentY == 0 && _currentX == 0)
                 _frameReady = false;
 
+            if (_currentX == 0 && RenderingEnabled &&
+                (_currentY < Y_PIXELS || _currentY == Y_SCANLINES - 1))
+                _nesSys.rom.mapper.ClockScanline();
+
             if (_currentY >= 0 && _currentY < Y_PIXELS && _currentX == 0)
             {
                 _lineAddresses[_currentY] = _ppuAddress & 0x7FFF;
