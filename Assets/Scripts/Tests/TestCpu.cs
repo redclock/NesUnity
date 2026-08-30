@@ -532,6 +532,73 @@ public class TestCpu
     }
 
     [Test]
+    public void TestApuSampleRateMatchesCpuClock()
+    {
+        var apu = new Apu();
+        apu.Reset();
+        int cycles = Apu.CpuClockHz / 10;
+        for (int i = 0; i < cycles; i++)
+            apu.Tick();
+
+        int expected = (int)Math.Round(cycles * (double)Apu.SampleRate / Apu.CpuClockHz);
+        Assert.That(apu.PendingSampleCount, Is.InRange(expected - 1, expected + 1));
+    }
+
+    [Test]
+    public void TestApuUnderrunIsRecordedAndPadded()
+    {
+        var apu = new Apu();
+        apu.Reset();
+        float[] buffer = Enumerable.Repeat(float.NaN, 512).ToArray();
+        apu.FillAudioBuffer(buffer, 1);
+
+        Assert.AreEqual(1, apu.AudioUnderrunCount);
+        Assert.AreEqual(0, apu.AudioOverrunCount);
+        Assert.IsTrue(buffer.All(sample => sample == 0f));
+    }
+
+    [Test]
+    public void TestApuHighWatermarkReadsWithoutUnderrun()
+    {
+        var apu = new Apu();
+        apu.Reset();
+        apu.WriteRegister(0x4000, 0xBF);
+        apu.WriteRegister(0x4002, 0x20);
+        apu.WriteRegister(0x4003, 0x08);
+        apu.WriteRegister(0x4015, 0x01);
+
+        for (int i = 0; i < (int)Math.Round(29780.5 * 7); i++)
+            apu.Tick();
+
+        Assert.That(apu.PendingSampleCount, Is.InRange(5135, 5145));
+        float[] block = new float[512];
+        int underrunsBefore = apu.AudioUnderrunCount;
+        for (int i = 0; i < 9; i++)
+            apu.FillAudioBuffer(block, 1);
+        Assert.AreEqual(underrunsBefore, apu.AudioUnderrunCount);
+        Assert.AreEqual(0, apu.AudioOverrunCount);
+    }
+
+    [Test]
+    public void TestApuLongProducerConsumerRunStaysBounded()
+    {
+        var apu = new Apu();
+        apu.Reset();
+        float[] block = new float[700];
+        for (int frame = 0; frame < 100; frame++)
+        {
+            for (int cycle = 0; cycle < 29829; cycle++)
+                apu.Tick();
+            apu.FillAudioBuffer(block, 1);
+        }
+
+        Assert.That(apu.PendingSampleCount, Is.GreaterThanOrEqualTo(0));
+        Assert.That(apu.PendingSampleCount, Is.LessThanOrEqualTo(8192));
+        Assert.AreEqual(0, apu.AudioUnderrunCount);
+        Assert.AreEqual(0, apu.AudioOverrunCount);
+    }
+
+    [Test]
     public void TestSmbRomApuMappingProducesSamples()
     {
         byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/smb.nes");

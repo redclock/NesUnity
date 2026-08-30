@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,17 +21,26 @@ namespace NesUnity
         private AudioClip _audioClip;
         private int _audioReadCount;
         private int _audioNonZeroReadCount;
+        private int _previousVSyncCount;
+        private int _previousTargetFrameRate;
+        private bool _framePacingConfigured;
         
         private Nes _nes;
         private bool _running;
+        private bool _audioStartPending;
         private float _frameAccumulator;
         private const float FrameTime = 29780.5f / Apu.CpuClockHz;
-        private const int AudioPrebufferFrames = 4;
+        private const int AudioPrebufferFrames = 7;
+        private const int NormalFrameBudget = 1;
+        private const int MaxFrameDebt = 1;
         public bool IsRunning => _running;
         public bool IsAudioPlaying => _audioSource != null && _audioSource.isPlaying;
-        public int AudioReadCount => _audioReadCount;
-        public int AudioNonZeroReadCount => _audioNonZeroReadCount;
+        public int AudioReadCount => Volatile.Read(ref _audioReadCount);
+        public int AudioNonZeroReadCount => Volatile.Read(ref _audioNonZeroReadCount);
         public int AudioPendingSampleCount => _nes == null ? 0 : _nes.apu.PendingSampleCount;
+        public int AudioOutputSampleRate => _nes == null ? 0 : _nes.apu.OutputSampleRate;
+        public int AudioUnderrunCount => _nes == null ? 0 : _nes.apu.AudioUnderrunCount;
+        public int AudioOverrunCount => _nes == null ? 0 : _nes.apu.AudioOverrunCount;
 
 #if UNITY_EDITOR
         // Editor-only test hook used to verify Unity's audio callback path.
@@ -68,6 +78,7 @@ namespace NesUnity
 
         private void Awake()
         {
+            ConfigureFramePacing();
             _textures[0] = new Texture2D(Ppu.X_PIXELS, Ppu.Y_PIXELS, TextureFormat.RGBA32, false);
             _textures[1] = new Texture2D(Ppu.X_PIXELS, Ppu.Y_PIXELS, TextureFormat.RGBA32, false);
             _textures[0].filterMode = FilterMode.Point;
@@ -80,21 +91,45 @@ namespace NesUnity
             _audioSource.playOnAwake = false;
             _audioSource.loop = true;
             _audioSource.spatialBlend = 0f;
+            _nes = new Nes();
+            ConfigureAudioSettings();
+            _nes.apu.SetOutputSampleRate(AudioSettings.outputSampleRate);
+            int outputSampleRate = _nes.apu.OutputSampleRate;
             _audioClip = AudioClip.Create(
                 "NES APU",
-                Apu.SampleRate,
+                outputSampleRate,
                 1,
-                Apu.SampleRate,
+                outputSampleRate,
                 true,
                 OnAudioRead,
                 OnAudioSetPosition);
             _audioSource.clip = _audioClip;
-            _nes = new Nes();
+        }
+
+        private static void ConfigureAudioSettings()
+        {
+            AudioConfiguration configuration = AudioSettings.GetConfiguration();
+            if (configuration.sampleRate == Apu.SampleRate && configuration.dspBufferSize == 512)
+                return;
+
+            configuration.sampleRate = Apu.SampleRate;
+            configuration.dspBufferSize = 512;
+            AudioSettings.Reset(configuration);
+        }
+
+        private void ConfigureFramePacing()
+        {
+            _previousVSyncCount = QualitySettings.vSyncCount;
+            _previousTargetFrameRate = Application.targetFrameRate;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 60;
+            _framePacingConfigured = true;
         }
 
         private void OnDestroy()
         {
             _running = false;
+            _audioStartPending = false;
             if (_audioSource != null)
                 _audioSource.Stop();
             _nes = null;
@@ -102,6 +137,12 @@ namespace NesUnity
             Destroy(_textures[1]);
             if (_audioClip != null)
                 Destroy(_audioClip);
+            if (_framePacingConfigured)
+            {
+                QualitySettings.vSyncCount = _previousVSyncCount;
+                Application.targetFrameRate = _previousTargetFrameRate;
+                _framePacingConfigured = false;
+            }
         }
 
         private void Start()
@@ -137,8 +178,9 @@ namespace NesUnity
                     }
                     if (_running)
                     {
+                        _frameAccumulator = 0f;
                         UploadTexture();
-                        _audioSource.Play();
+                        _audioStartPending = true;
                     }
                 }
             }
@@ -154,23 +196,44 @@ namespace NesUnity
                 return;
 
             UpdateController();
-            _frameAccumulator += Time.unscaledDeltaTime;
-            int frames = 0;
-            while (_frameAccumulator >= FrameTime && frames++ < 2)
-            {
-                if (!_nes.RunFrame())
-                {
-                    _running = false;
-                    Debug.LogError("NES stopped before completing a frame.");
-                    break;
-                }
+            _frameAccumulator = Mathf.Min(
+                _frameAccumulator + Time.unscaledDeltaTime,
+                FrameTime * MaxFrameDebt);
 
-                UploadTexture();
+            int framesRun = 0;
+            if (_frameAccumulator >= FrameTime)
+            {
+                if (!TryRunFrame())
+                    return;
                 _frameAccumulator -= FrameTime;
+                framesRun = NormalFrameBudget;
+                // Never replay accumulated time by running several expensive
+                // NES frames in one Unity update. This keeps video pacing
+                // continuous when the editor briefly misses its deadline.
+                if (_frameAccumulator >= FrameTime)
+                    _frameAccumulator = 0f;
             }
 
-            if (frames == 2)
-                _frameAccumulator = 0;
+            if (framesRun > 0)
+                UploadTexture();
+
+            if (_audioStartPending)
+            {
+                _audioStartPending = false;
+                _audioSource.Play();
+            }
+        }
+
+        private bool TryRunFrame()
+        {
+            if (_nes.RunFrame())
+                return true;
+
+            _running = false;
+            if (_audioSource != null)
+                _audioSource.Stop();
+            Debug.LogError("NES stopped before completing a frame.");
+            return false;
         }
 
         private void UpdateController()
@@ -199,7 +262,7 @@ namespace NesUnity
 
         private void OnAudioRead(float[] data)
         {
-            _audioReadCount++;
+            Interlocked.Increment(ref _audioReadCount);
             Nes nes = _nes;
             if (nes == null)
             {
@@ -211,7 +274,7 @@ namespace NesUnity
             {
                 if (Mathf.Abs(data[i]) > 0.0001f)
                 {
-                    _audioNonZeroReadCount++;
+                    Interlocked.Increment(ref _audioNonZeroReadCount);
                     break;
                 }
             }

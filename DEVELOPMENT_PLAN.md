@@ -34,7 +34,9 @@ ROM 加载 -> CPU 执行 -> PPU 渲染 -> 控制器输入 -> SMB 可玩
 - PPU 还不是完整逐 dot、逐总线周期模拟。
 - Sprite Overflow 仍是简化行为，未复现硬件 bug。
 - 开放总线和部分寄存器副作用不完整。
-- APU 已实现两个 Pulse、Triangle、Noise 通道、Frame Counter、`$4015` 状态、固定环形采样缓冲和 Unity 流式音频输出；DMC 仍为静音 stub。
+- APU 已实现两个 Pulse、Triangle、Noise 通道、Frame Counter、`$4015` 状态、固定环形采样缓冲、Unity 流式音频输出和音频高水位调度；DMC 仍为静音 stub。
+- 音频配置请求 `44.1 kHz / 512 samples`；若桌面音频设备拒绝切换采样率，APU 与流式 `AudioClip` 会共同跟随设备实际采样率，避免长期缓冲漂移。
+- 视频驱动严格限制为每个 Unity 更新最多 1 个 NES 帧；音频不再触发额外追帧或暂停视频，避免画面停顿后跳帧。运行 NES 场景时固定 60 FPS 并暂时关闭 VSync，退出场景恢复原设置；音频欠载/溢出只记录诊断计数。
 - 目前支持 NROM、CNROM（Mapper 3）、UxROM（Mapper 2）、MMC1（Mapper 1）和 MMC3（Mapper 4）。
 - PlayMode 已覆盖场景音频输出配置和启动播放状态。
 - 当前只优先保证桌面 Unity 运行。
@@ -198,7 +200,7 @@ void TickPpu();
 
 ## 9. 阶段六：APU
 
-状态：两个 Pulse、Triangle、Noise 通道、Frame Counter、`$4015` 状态、NES 非线性混音、固定环形采样缓冲和 Unity 流式音频输出已完成第一版；DMC 仍未完成。
+状态：两个 Pulse、Triangle、Noise 通道、Frame Counter、`$4015` 状态、NES 非线性混音、固定环形采样缓冲、Unity 流式音频输出和高水位调度已完成第一版；DMC 仍未完成。
 
 ### 目标
 
@@ -213,7 +215,7 @@ void TickPpu();
 5. Noise（已完成第一版）。
 6. DMC（寄存器 stub -> DMA 播放器）。
 7. NES 混音公式（已完成第一版）。
-8. Unity 音频环形缓冲（已完成第一版）。
+8. Unity 音频环形缓冲与高水位调度（已完成第一版）。
 
 模拟器核心与 Unity 输出解耦：
 
@@ -287,6 +289,7 @@ public interface IAudioSink
 - 一号手柄。
 - 背景和精灵合成。
 - Pulse、Triangle、Noise 音频与 Unity 流式播放。
+- 音频欠载/溢出统计和生产速率测试。
 
 尚未覆盖：
 

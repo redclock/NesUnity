@@ -221,16 +221,17 @@ namespace NesUnity
         private void RenderScanline(int scanline)
         {
             int backdrop = ReadPaletteColor(0);
+            int rowOffset = (Y_PIXELS - 1 - scanline) * X_PIXELS;
             for (int x = 0; x < X_PIXELS; x++)
             {
                 _backgroundOpaque[x] = false;
                 _spriteWritten[x] = false;
-                SetPixel(x, scanline, backdrop);
+                pixels[rowOffset + x] = backdrop;
             }
 
             if (PpuMask.ShowBackground)
             {
-                RenderBackgroundLine(scanline, _lineAddresses[scanline], _lineFineX[scanline], true);
+                RenderBackgroundLine(rowOffset, _lineAddresses[scanline], _lineFineX[scanline], true);
             }
 
             if (PpuMask.ShowSprites)
@@ -265,45 +266,72 @@ namespace NesUnity
             }
         }
 
-        private void RenderBackgroundLine(int scanline, int address, int fineXScroll, bool applyMask)
+        private void RenderBackgroundLine(int rowOffset, int address, int fineXScroll, bool applyMask)
         {
             int scrollX = (GetCoarseX(address) * 8) + fineXScroll;
             int scrollY = (GetCoarseYValue(address) * 8) + GetFineYValue(address);
             int nametableX = (address >> 10) & 1;
             int nametableY = (address >> 11) & 1;
+            int tileColumn = scrollX >> 3;
+            int tileRow = scrollY >> 3;
+            int tileY = tileRow % 30;
+            int ntY = (nametableY + tileRow / 30) & 1;
+            int fineY = scrollY & 7;
+            int screenX = -(scrollX & 7);
+            int firstVisibleX = applyMask && !PpuMask.ShowLeft8Background ? 8 : 0;
+            int patternTableAddress = PpuCtrl.BackgroundChrAddress;
+            bool greyscale = PpuMask.Greyscale;
+            byte[] palette = _memory.Palette;
+            int lastAttributeAddress = -1;
+            int attribute = 0;
 
-            for (int x = 0; x < X_PIXELS; x++)
+            // The scanline renderer runs atomically at dot zero, so mapper
+            // mirroring cannot change until this method returns.
+            _memory.SyncNameTableMap();
+
+            while (screenX < X_PIXELS)
             {
-                if (applyMask && x < 8 && !PpuMask.ShowLeft8Background)
-                    continue;
-
-                int worldX = scrollX + x;
-                int worldY = scrollY;
-                int tileColumn = worldX / 8;
-                int tileRow = worldY / 8;
                 int tileX = tileColumn & 0x1F;
-                int tileY = tileRow % 30;
-                int ntX = (nametableX + tileColumn / 32) & 1;
-                int ntY = (nametableY + tileRow / 30) & 1;
+                int ntX = (nametableX + (tileColumn >> 5)) & 1;
                 int nametable = ntY * 2 + ntX;
                 int nameAddress = 0x2000 + nametable * 0x400 + tileY * 32 + tileX;
-                int tile = _memory.ReadByte(nameAddress);
-                int fineX = worldX & 7;
-                int fineY = worldY & 7;
-                int patternAddress = PpuCtrl.BackgroundChrAddress + tile * 16 + fineY;
-                int bit = 7 - fineX;
-                int chr = ((_memory.ReadByte(patternAddress) >> bit) & 1) |
-                          (((_memory.ReadByte(patternAddress + 8) >> bit) & 1) << 1);
-                if (chr == 0)
-                    continue;
+                int tile = _memory.ReadNameTableByteUnchecked(nameAddress);
+                int patternAddress = patternTableAddress + tile * 16 + fineY;
+                int pattern = _memory.ReadChrRom(patternAddress);
 
                 int attributeAddress = 0x2000 + nametable * 0x400 + 0x3C0 +
                                        (tileY / 4) * 8 + tileX / 4;
-                int attribute = _memory.ReadByte(attributeAddress);
-                int quadrantShift = ((tileY & 2) != 0 ? 4 : 0) + ((tileX & 2) != 0 ? 2 : 0);
-                int palette = ((attribute >> quadrantShift) & 0x03) * 4 + chr;
-                _backgroundOpaque[x] = true;
-                SetPixel(x, scanline, ReadPaletteColor(palette));
+                if (pattern != 0 && attributeAddress != lastAttributeAddress)
+                {
+                    attribute = _memory.ReadNameTableByteUnchecked(attributeAddress);
+                    lastAttributeAddress = attributeAddress;
+                }
+
+                if (pattern != 0)
+                {
+                    int quadrantShift = ((tileY & 2) != 0 ? 4 : 0) + ((tileX & 2) != 0 ? 2 : 0);
+                    int paletteBase = ((attribute >> quadrantShift) & 0x03) * 4;
+                    int low = pattern & 0xFF;
+                    int high = pattern >> 8;
+                    int start = screenX < firstVisibleX ? firstVisibleX - screenX : 0;
+                    int end = screenX + 8 > X_PIXELS ? X_PIXELS - screenX : 8;
+
+                    for (int tilePixel = start; tilePixel < end; tilePixel++)
+                    {
+                        int bit = 7 - tilePixel;
+                        int chr = ((low >> bit) & 1) | (((high >> bit) & 1) << 1);
+                        if (chr == 0)
+                            continue;
+
+                        int x = screenX + tilePixel;
+                        int color = palette[paletteBase + chr] & 0x3F;
+                        pixels[rowOffset + x] = greyscale ? color & 0x30 : color;
+                        _backgroundOpaque[x] = true;
+                    }
+                }
+
+                tileColumn++;
+                screenX += 8;
             }
         }
 

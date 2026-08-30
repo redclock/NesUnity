@@ -15,14 +15,20 @@ namespace NesUnity
         private byte _frameCounter;
         private int _frameCounterCycles;
         private bool _halfRateTimerClock;
+        private int _outputSampleRate = SampleRate;
         private double _sampleAccumulator;
         private const int SampleBufferCapacity = 8192;
         private readonly float[] _sampleBuffer = new float[SampleBufferCapacity];
         private int _sampleReadPosition;
         private int _sampleWritePosition;
+        private int _audioUnderrunCount;
+        private int _audioOverrunCount;
 
         public bool FrameCounter5Step => (_frameCounter & 0x80) != 0;
         public bool IrqInhibit => (_frameCounter & 0x40) != 0;
+        public int OutputSampleRate => _outputSampleRate;
+        public int AudioUnderrunCount => Volatile.Read(ref _audioUnderrunCount);
+        public int AudioOverrunCount => Volatile.Read(ref _audioOverrunCount);
         public int PendingSampleCount
         {
             get
@@ -40,11 +46,19 @@ namespace NesUnity
             _sampleAccumulator = 0;
             Volatile.Write(ref _sampleReadPosition, 0);
             Volatile.Write(ref _sampleWritePosition, 0);
+            Volatile.Write(ref _audioUnderrunCount, 0);
+            Volatile.Write(ref _audioOverrunCount, 0);
             _pulse[0].Reset();
             _pulse[1].Reset();
             _triangle.Reset();
             _noise.Reset();
             _dmc.Reset();
+        }
+
+        public void SetOutputSampleRate(int sampleRate)
+        {
+            _outputSampleRate = sampleRate > 0 ? sampleRate : SampleRate;
+            _sampleAccumulator = 0;
         }
 
         public byte ReadRegister(int address)
@@ -113,7 +127,7 @@ namespace NesUnity
             {
                 _pulse[0].TickTimer();
                 _pulse[1].TickTimer();
-            _noise.TickTimer();
+                _noise.TickTimer();
             }
 
             _frameCounterCycles++;
@@ -150,7 +164,7 @@ namespace NesUnity
                 }
             }
 
-            _sampleAccumulator += SampleRate;
+            _sampleAccumulator += _outputSampleRate;
             if (_sampleAccumulator >= CpuClockHz)
             {
                 _sampleAccumulator -= CpuClockHz;
@@ -187,6 +201,8 @@ namespace NesUnity
             int read = Volatile.Read(ref _sampleReadPosition);
             int write = Volatile.Read(ref _sampleWritePosition);
             int available = Math.Min(frames, Math.Max(0, write - read));
+            if (available < frames)
+                Interlocked.Increment(ref _audioUnderrunCount);
             for (int frame = 0; frame < frames; frame++)
             {
                 float sample = frame < available
@@ -207,6 +223,7 @@ namespace NesUnity
             {
                 // Only the audio thread advances the read position. Dropping a
                 // new sample here preserves the lock-free SPSC ownership model.
+                Interlocked.Increment(ref _audioOverrunCount);
                 return;
             }
             _sampleBuffer[write & (SampleBufferCapacity - 1)] = sample;

@@ -19,10 +19,8 @@ namespace NesUnity
 
 public class PpuMemory
 {
-    private Ppu _ppu;
-    
     // Internal 4K VRAM for 4 Name table
-    private byte[] _vram = new byte[0x1000];
+    private readonly byte[] _vram = new byte[0x1000];
     public byte[] Vram
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -36,17 +34,19 @@ public class PpuMemory
     }
 
     // 64 bytes for palette
-    private byte[] _palette = new byte[0x20];
+    private readonly byte[] _palette = new byte[0x20];
 
-    private int[] _mirrorNameTable;
+    private readonly int[] _mirrorNameTable = new int[4];
+    private readonly MirrorMode _fallbackMirrorMode;
+    private readonly MapperBase _mapper;
     private MirrorMode _currentMirrorMode;
-    private MapperBase _mapper;
     
     public PpuMemory(Ppu ppu)
     {
-        _ppu = ppu;
-        _mapper = ppu.NesSys.rom.mapper;
-        _currentMirrorMode = ppu.NesSys.rom.mirrorMode;
+        NesRom rom = ppu.NesSys.rom;
+        _mapper = rom.mapper;
+        _fallbackMirrorMode = rom.mirrorMode;
+        _currentMirrorMode = _mapper.GetMirrorMode(_fallbackMirrorMode);
         InitNameTableMap(_currentMirrorMode);
     }
 
@@ -67,11 +67,29 @@ public class PpuMemory
     public int GetNameTableAddress(int address)
     {
         RefreshNameTableMap();
+        return GetNameTableAddressUnchecked(address);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void SyncNameTableMap()
+    {
+        RefreshNameTableMap();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal byte ReadNameTableByteUnchecked(int address)
+    {
+        return _vram[GetNameTableAddressUnchecked(address)];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetNameTableAddressUnchecked(int address)
+    {
         // Each bank size $400 = 1K
         int bank = (address  & 0x0FFF) >> 10;
             
         // Map to address - $2000
-        return (_mirrorNameTable[bank] << 10) | (address & 0x3FF);  
+        return (_mirrorNameTable[bank] << 10) | (address & 0x3FF);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -112,7 +130,7 @@ public class PpuMemory
             // $2000-$2FFF
             // Name tables 
             // $3000-$3EFF Mirrors of $2000-$2EFF
-            return _vram[GetNameTableAddress(address)];
+            return ReadNameTableByteUnchecked(address);
         }
 
         if (address < 0x4000)
@@ -141,7 +159,7 @@ public class PpuMemory
             // $2000-$2FFF
             // Name tables 
             // $3000-$3EFF Mirrors of $2000-$2EFF
-            _vram[GetNameTableAddress(address)] = val;
+            _vram[GetNameTableAddressUnchecked(address)] = val;
         }
 
         else if (address < 0x4000)
@@ -155,7 +173,7 @@ public class PpuMemory
 
     private void RefreshNameTableMap()
     {
-        MirrorMode mode = _mapper.GetMirrorMode(_ppu.NesSys.rom.mirrorMode);
+        MirrorMode mode = _mapper.GetMirrorMode(_fallbackMirrorMode);
         if (mode == _currentMirrorMode)
             return;
 
@@ -168,21 +186,29 @@ public class PpuMemory
         switch (mode)
         {
             case MirrorMode.Horizontal:
-                _mirrorNameTable = new[] {0, 0, 1, 1};
+                SetNameTableMap(0, 0, 1, 1);
                 break;
             case MirrorMode.Vertical:
-                _mirrorNameTable = new[] {0, 1, 0, 1};
+                SetNameTableMap(0, 1, 0, 1);
                 break;
             case MirrorMode.FourScreen:
-                _mirrorNameTable = new[] {0, 1, 2, 3};
+                SetNameTableMap(0, 1, 2, 3);
                 break;
             case MirrorMode.Upper:
-                _mirrorNameTable = new[] {1, 1, 1, 1};
+                SetNameTableMap(1, 1, 1, 1);
                 break;
             case MirrorMode.Lower:
-                _mirrorNameTable = new[] {0, 0, 0, 0};
+                SetNameTableMap(0, 0, 0, 0);
                 break;
         }
+    }
+
+    private void SetNameTableMap(int table0, int table1, int table2, int table3)
+    {
+        _mirrorNameTable[0] = table0;
+        _mirrorNameTable[1] = table1;
+        _mirrorNameTable[2] = table2;
+        _mirrorNameTable[3] = table3;
     }
 
 }

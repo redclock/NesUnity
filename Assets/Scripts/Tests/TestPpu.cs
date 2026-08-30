@@ -295,6 +295,128 @@ public class TestPpu
     }
 
     [Test]
+    public void TestTileRendererHandlesFineXAndLeftMask()
+    {
+        int[] fineScrollValues = {0, 1, 7};
+        foreach (int fineX in fineScrollValues)
+        {
+            Nes nes = CreateRenderTestNes(0, MirrorMode.Vertical);
+            SetPatternRow(nes, 1, 0x80, 0x00);
+            nes.ppu.Memory.Palette[0] = 0x0F;
+            nes.ppu.Memory.Palette[1] = 0x21;
+            FillNameTableRows(nes, 1);
+            Assert.AreEqual(1, nes.ppu.Memory.ReadByte(0x2000));
+
+            RenderFirstScanline(nes, 0x2000, fineX, true);
+
+            int rowOffset = (Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS;
+            for (int x = 0; x < 32; x++)
+            {
+                int expected = ((x + fineX) & 7) == 0 ? 0x21 : 0x0F;
+                Assert.AreEqual(expected, nes.ppu.FrameBuffer[rowOffset + x],
+                    $"fineX={fineX}, x={x}");
+            }
+        }
+
+        Nes masked = CreateRenderTestNes(0, MirrorMode.Vertical);
+        SetPatternRow(masked, 1, 0xFF, 0x00);
+        masked.ppu.Memory.Palette[0] = 0x0F;
+        masked.ppu.Memory.Palette[1] = 0x21;
+        FillNameTableRows(masked, 1);
+        RenderFirstScanline(masked, 0x2000, 0, false);
+
+        int maskedRowOffset = (Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS;
+        for (int x = 0; x < 8; x++)
+            Assert.AreEqual(0x0F, masked.ppu.FrameBuffer[maskedRowOffset + x], $"masked x={x}");
+        Assert.AreEqual(0x21, masked.ppu.FrameBuffer[maskedRowOffset + 8]);
+    }
+
+    [Test]
+    public void TestTileRendererCrossesNameTableAtCoarseX31()
+    {
+        Nes nes = CreateRenderTestNes(0, MirrorMode.Vertical);
+        SetPatternRow(nes, 1, 0xFF, 0x00);
+        SetPatternRow(nes, 2, 0x00, 0xFF);
+        nes.ppu.Memory.Palette[0] = 0x0F;
+        nes.ppu.Memory.Palette[1] = 0x11;
+        nes.ppu.Memory.Palette[2] = 0x22;
+        nes.ppu.Memory.Vram[0x001F] = 1;
+        nes.ppu.Memory.Vram[0x0400] = 2;
+
+        RenderFirstScanline(nes, 0x201F, 0, true);
+
+        int rowOffset = (Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS;
+        Assert.AreEqual(0x11, nes.ppu.FrameBuffer[rowOffset]);
+        Assert.AreEqual(0x11, nes.ppu.FrameBuffer[rowOffset + 7]);
+        Assert.AreEqual(0x22, nes.ppu.FrameBuffer[rowOffset + 8]);
+        Assert.AreEqual(0x22, nes.ppu.FrameBuffer[rowOffset + 15]);
+        Assert.AreEqual(0x0F, nes.ppu.FrameBuffer[rowOffset + 16]);
+    }
+
+    [Test]
+    public void TestTileRendererUsesHeaderMirrorModes()
+    {
+        MirrorMode[] modes = {MirrorMode.Horizontal, MirrorMode.Vertical, MirrorMode.FourScreen};
+        int[][] mappings =
+        {
+            new[] {0, 0, 1, 1},
+            new[] {0, 1, 0, 1},
+            new[] {0, 1, 2, 3}
+        };
+
+        for (int modeIndex = 0; modeIndex < modes.Length; modeIndex++)
+        {
+            for (int logicalTable = 0; logicalTable < 4; logicalTable++)
+            {
+                Nes nes = CreateRenderTestNes(0, modes[modeIndex]);
+                ConfigurePhysicalNameTables(nes);
+                RenderFirstScanline(nes, 0x2000 + logicalTable * 0x400, 0, true);
+
+                int rowOffset = (Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS;
+                int expected = 0x10 + mappings[modeIndex][logicalTable];
+                Assert.AreEqual(expected, nes.ppu.FrameBuffer[rowOffset],
+                    $"mode={modes[modeIndex]}, table={logicalTable}");
+            }
+        }
+    }
+
+    [Test]
+    public void TestMmc1RendererAppliesDynamicMirroringOnNextScanline()
+    {
+        Nes nes = CreateRenderTestNes(1, MirrorMode.Horizontal);
+        ConfigurePhysicalNameTables(nes);
+        WriteMmc1Register(nes, 0x8000, 0);
+
+        RenderFirstScanline(nes, 0x2000, 0, true);
+        Assert.AreEqual(0x10, nes.ppu.FrameBuffer[(Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS]);
+
+        WriteMmc1Register(nes, 0x8000, 1);
+        AdvanceToNextScanline(nes);
+        SetPpuRenderAddress(nes, 0x2000);
+        nes.ppu.Tick();
+
+        Assert.AreEqual(0x11, nes.ppu.FrameBuffer[(Ppu.Y_PIXELS - 2) * Ppu.X_PIXELS]);
+    }
+
+    [Test]
+    public void TestMmc3RendererAppliesDynamicMirroringOnNextScanline()
+    {
+        Nes nes = CreateRenderTestNes(4, MirrorMode.Horizontal);
+        ConfigurePhysicalNameTables(nes);
+        nes.cpu.Memory.WriteByte(0xA000, 1);
+
+        RenderFirstScanline(nes, 0x2400, 0, true);
+        Assert.AreEqual(0x10, nes.ppu.FrameBuffer[(Ppu.Y_PIXELS - 1) * Ppu.X_PIXELS]);
+
+        nes.cpu.Memory.WriteByte(0xA000, 0);
+        AdvanceToNextScanline(nes);
+        SetPpuRenderAddress(nes, 0x2400);
+        nes.ppu.Tick();
+
+        Assert.AreEqual(0x11, nes.ppu.FrameBuffer[(Ppu.Y_PIXELS - 2) * Ppu.X_PIXELS]);
+    }
+
+    [Test]
     public void TestRunFrameRendersSmbFrame()
     {
         byte[] bytes = File.ReadAllBytes(Application.streamingAssetsPath + "/smb.nes");
@@ -437,6 +559,99 @@ public class TestPpu
             pixels[i] = NesScreenView.rgbaPalette[ppuPixels[i]];
         texture.SetPixelData(pixels, 0);
         return texture;
+    }
+
+    private static Nes CreateRenderTestNes(int mapperNumber, MirrorMode mirrorMode)
+    {
+        const int prgBanks = 2;
+        byte[] bytes = new byte[16 + prgBanks * 0x4000];
+        bytes[0] = (byte)'N';
+        bytes[1] = (byte)'E';
+        bytes[2] = (byte)'S';
+        bytes[3] = 0x1A;
+        bytes[4] = prgBanks;
+        bytes[5] = 0;
+
+        int mirrorFlags = 0;
+        if (mirrorMode == MirrorMode.Vertical)
+            mirrorFlags = 0x01;
+        else if (mirrorMode == MirrorMode.FourScreen)
+            mirrorFlags = 0x08;
+        bytes[6] = (byte)(((mapperNumber & 0x0F) << 4) | mirrorFlags);
+        bytes[7] = (byte)(mapperNumber & 0xF0);
+
+        var nes = new Nes();
+        Assert.True(nes.PowerOn(bytes));
+        return nes;
+    }
+
+    private static void SetPatternRow(Nes nes, int tile, byte low, byte high)
+    {
+        int address = tile * 16;
+        nes.ppu.Memory.WriteByte(address, low);
+        nes.ppu.Memory.WriteByte(address + 8, high);
+        Assert.AreEqual(low, nes.ppu.Memory.ReadByte(address));
+        Assert.AreEqual(high, nes.ppu.Memory.ReadByte(address + 8));
+        Assert.AreEqual(low | (high << 8), nes.ppu.Memory.ReadChrRom(address));
+    }
+
+    private static void FillNameTableRows(Nes nes, byte tile)
+    {
+        byte[] vram = nes.ppu.Memory.Vram;
+        for (int table = 0; table < 4; table++)
+        {
+            int tableAddress = table * 0x400;
+            for (int x = 0; x < 32; x++)
+                vram[tableAddress + x] = tile;
+        }
+    }
+
+    private static void ConfigurePhysicalNameTables(Nes nes)
+    {
+        SetPatternRow(nes, 1, 0xFF, 0x00);
+        byte[] vram = nes.ppu.Memory.Vram;
+        byte[] palette = nes.ppu.Memory.Palette;
+        palette[0] = 0x0F;
+        for (int table = 0; table < 4; table++)
+        {
+            int tableAddress = table * 0x400;
+            vram[tableAddress] = 1;
+            vram[tableAddress + 0x3C0] = (byte)table;
+            palette[table * 4 + 1] = (byte)(0x10 + table);
+        }
+    }
+
+    private static void RenderFirstScanline(Nes nes, int address, int fineX, bool showLeftBackground)
+    {
+        byte mask = (byte)(0x08 | (showLeftBackground ? 0x02 : 0));
+        nes.cpu.Memory.WriteByte(0x2001, mask);
+        nes.cpu.Memory.ReadByte(0x2002);
+        nes.cpu.Memory.WriteByte(0x2005, (byte)fineX);
+        nes.cpu.Memory.ReadByte(0x2002);
+        SetPpuRenderAddress(nes, address);
+        Assert.True(nes.ppu.PpuMask.ShowBackground);
+        Assert.AreEqual(showLeftBackground, nes.ppu.PpuMask.ShowLeft8Background);
+        Assert.AreEqual(address & 0x0FFF, nes.ppu.CurrentAddress);
+        nes.ppu.Tick();
+    }
+
+    private static void SetPpuRenderAddress(Nes nes, int address)
+    {
+        address &= 0x0FFF;
+        nes.cpu.Memory.WriteByte(0x2006, (byte)(address >> 8));
+        nes.cpu.Memory.WriteByte(0x2006, (byte)address);
+    }
+
+    private static void AdvanceToNextScanline(Nes nes)
+    {
+        for (int dot = 1; dot < Ppu.X_CYCLES; dot++)
+            nes.ppu.Tick();
+    }
+
+    private static void WriteMmc1Register(Nes nes, int address, int value)
+    {
+        for (int bit = 0; bit < 5; bit++)
+            nes.cpu.Memory.WriteByte(address, (byte)((value >> bit) & 1));
     }
 
     private static void TickCpu(Nes nes, int tickCount)

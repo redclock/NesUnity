@@ -49,15 +49,15 @@ Scanline-level background and sprite rendering, keyboard controller input, and N
     * Overscan 🔲
   4. Input ✅ (keyboard controller 1)
  5. APU
-  * Pulse ✅ (core model, no Unity output yet)
-  * Triangle ✅ (core model, no Unity output yet)
-  * Noise ✅ (core model, no Unity output yet)
+  * Pulse ✅ (core model + Unity streaming output)
+  * Triangle ✅ (core model + Unity streaming output)
+  * Noise ✅ (core model + Unity streaming output)
   * DMC (stub)
 
 ## Accuracy boundaries
 
 Implemented: NTSC 2C02 base frame timing, VBlank/NMI, PPU `v/t/x/w` scroll address
-updates, NameTable mirroring, NROM, CNROM, UxROM, MMC1, OAM DMA, keyboard controller 1, background and
+updates, NameTable mirroring, NROM, CNROM, UxROM, MMC1, MMC3, OAM DMA, keyboard controller 1, background and
 sprite composition.
 
 Not yet implemented: DMC playback, additional mappers, PAL/Dendy timing, exact
